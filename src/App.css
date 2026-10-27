@@ -46,6 +46,7 @@ body {
   padding: 14px 28px;
   background: var(--bg-elev);
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -483,9 +484,12 @@ body {
 .btn-primary {
   background: var(--accent);
   color: var(--accent-ink);
+  box-shadow: 0 2px 10px rgba(0, 204, 204, 0.25);
 }
 .btn-primary:hover {
   filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 204, 204, 0.32);
 }
 .btn-primary:disabled {
   opacity: 0.45;
@@ -519,6 +523,12 @@ body {
   gap: 8px;
   margin: 22px 0;
   flex-wrap: wrap;
+  position: sticky;
+  top: 57px;
+  z-index: 9;
+  background: var(--bg);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft);
 }
 .stepper-item {
   display: flex;
@@ -544,11 +554,6 @@ body {
   color: var(--accent);
   background: var(--accent-soft);
 }
-.stepper-item.is-done .stepper-dot {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-}
 .stepper-label {
   font-size: 13px;
   color: var(--text-muted);
@@ -560,8 +565,21 @@ body {
 
 /* ---------------------------- Option cards ------------------------------ */
 .wizard-body {
-  min-height: 260px;
   margin-bottom: 20px;
+}
+.wizard-section {
+  padding: 24px 0 32px;
+  border-bottom: 1px solid var(--border-soft);
+  scroll-margin-top: 110px;
+}
+.wizard-section:last-child {
+  border-bottom: none;
+  padding-bottom: 8px;
+}
+.wizard-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 14px;
 }
 .step-hint {
   color: var(--text-muted);
@@ -595,6 +613,51 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
 }
+.upload-form {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.upload-form h3 {
+  font-size: 15px;
+  margin: 0;
+}
+.upload-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.upload-form .field input[type='text'],
+.upload-form .field input[type='file'],
+.upload-form .field select,
+.upload-form .field textarea {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.upload-form .field textarea {
+  resize: vertical;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}
+.upload-form .field-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.upload-form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
 .option-card {
   display: flex;
   flex-direction: column;
@@ -606,15 +669,18 @@ body {
   border-radius: var(--radius);
   cursor: pointer;
   color: var(--text);
-  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  transition: all 0.15s ease, transform 0.15s ease;
 }
 .option-card:hover {
   border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.24);
 }
 .option-card.is-selected {
   border-color: var(--accent);
   background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent), 0 6px 16px rgba(0, 204, 204, 0.12);
 }
 .option-card-head {
   display: flex;
@@ -656,7 +722,26 @@ body {
 }
 .footer-right {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 16px;
+}
+.wizard-footer-sticky {
+  position: sticky;
+  bottom: 0;
+  margin: 0 -28px;
+  padding: 16px 28px;
+  background: var(--bg-elev);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.24);
+  z-index: 8;
+}
+.wizard-footer-summary {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ------------------------------ Panels ---------------------------------- */
@@ -672,6 +757,7 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
+  box-shadow: var(--shadow);
 }
 .panel-wide {
   grid-column: 1 / -1;

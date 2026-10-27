@@ -11,6 +11,11 @@ import {
   claudeCodeTelemetryEvents,
   claudeCodeTelemetryMeta,
 } from '../samples/claudeCodeTelemetry';
+import { ciscoAsaEvents, ciscoAsaSampleMeta } from '../samples/ciscoAsa';
+import { checkpointEvents, checkpointSampleMeta } from '../samples/checkpoint';
+import { crowdstrikeEvents, crowdstrikeSampleMeta } from '../samples/crowdstrike';
+import { f5BigipEvents, f5BigipSampleMeta } from '../samples/f5Bigip';
+import { zscalerEvents, zscalerSampleMeta } from '../samples/zscaler';
 
 /**
  * Visible source profiles. Each describes a realistic protocol/collector path.
@@ -234,6 +239,190 @@ export const sourceProfiles: SourceProfile[] = [
       approxEventsPerSecond: 0,
       maintainerNote:
         'App-authored, correlated multi-source incident backfilled into Cribl Lake via Direct Access HTTP ingest (see src/domain/samples/security).',
+    },
+  },
+  {
+    id: 'src-cisco-asa-firewall',
+    family: 'syslog',
+    displayName: 'Cisco ASA Firewall (syslog)',
+    summary: 'Perimeter firewall connection, deny, and VPN logs over syslog.',
+    protocol: 'Syslog (RFC3164 over UDP/TCP)',
+    streamInputKind: 'syslog',
+    loopListenerKind: 'syslog',
+    datagenSample: 'cisco_asa',
+    defaultPort: 21021,
+    sampleSchema: [
+      { name: 'action', type: 'string', example: 'Built' },
+      { name: 'src', type: 'ip', example: '203.0.113.42' },
+      { name: 'dst', type: 'ip', example: '10.14.2.87' },
+      { name: 'port', type: 'number', example: '443' },
+      { name: 'user', type: 'string', sensitive: true, example: 'a.smith' },
+    ],
+    compatibleDestinations: ['siem-analytics', 'low-cost-store', 'compliance-archive'],
+    parsingAssumptions: [
+      '%ASA-#-######: message format',
+      'Timestamp taken from syslog header',
+      'Action/severity mapped from the ASA message id',
+    ],
+    sampleFeed: {
+      method: 'cribl-datagen',
+      internalTemplateRef: 'replay:cisco_asa',
+      approxEventsPerSecond: 100,
+      maintainerNote:
+        'App-shipped Cisco ASA syslog events replayed via a pipeline (datagen used only as a clock) so the data matches the cribl-cisco-asa-cleanup pack.',
+    },
+    replaySample: {
+      events: ciscoAsaEvents,
+      sourcetype: ciscoAsaSampleMeta.sourcetype,
+      source: ciscoAsaSampleMeta.source,
+      index: ciscoAsaSampleMeta.index,
+    },
+  },
+  {
+    id: 'src-checkpoint-firewall',
+    family: 'syslog',
+    displayName: 'Check Point Firewall (syslog)',
+    summary: 'Perimeter firewall accept/drop, VPN, and NAT logs over syslog.',
+    protocol: 'Syslog (LEA-style key=value)',
+    streamInputKind: 'syslog',
+    loopListenerKind: 'syslog',
+    datagenSample: 'checkpoint_fw',
+    defaultPort: 21022,
+    sampleSchema: [
+      { name: 'action', type: 'string', example: 'accept' },
+      { name: 'src', type: 'ip', example: '10.14.2.87' },
+      { name: 'dst', type: 'ip', example: '52.10.44.9' },
+      { name: 'service', type: 'string', example: '443' },
+      { name: 'user', type: 'string', sensitive: true, example: 'a.smith' },
+    ],
+    compatibleDestinations: ['siem-analytics', 'low-cost-store', 'compliance-archive'],
+    parsingAssumptions: [
+      'LEA-style key=value syslog payload',
+      'Timestamp taken from syslog header',
+      'action field drives allow/deny classification',
+    ],
+    sampleFeed: {
+      method: 'cribl-datagen',
+      internalTemplateRef: 'replay:checkpoint_fw',
+      approxEventsPerSecond: 80,
+      maintainerNote:
+        'App-shipped Check Point syslog events replayed via a pipeline (datagen used only as a clock) so the data matches the cribl-checkpoint pack.',
+    },
+    replaySample: {
+      events: checkpointEvents,
+      sourcetype: checkpointSampleMeta.sourcetype,
+      source: checkpointSampleMeta.source,
+      index: checkpointSampleMeta.index,
+    },
+  },
+  {
+    id: 'src-crowdstrike-falcon',
+    family: 'security-lake',
+    displayName: 'CrowdStrike Falcon (EDR)',
+    summary: 'Endpoint detections and process telemetry from CrowdStrike Falcon.',
+    protocol: 'JSON over TCP (Falcon Data Replicator-style)',
+    streamInputKind: 'tcp',
+    loopListenerKind: 'tcp',
+    datagenSample: 'crowdstrike_falcon',
+    defaultPort: 21023,
+    sampleSchema: [
+      { name: 'DetectName', type: 'string', example: 'Suspicious Process' },
+      { name: 'SeverityName', type: 'string', example: 'High' },
+      { name: 'ComputerName', type: 'string', example: 'wks-brown-mbp' },
+      { name: 'UserName', type: 'string', sensitive: true, example: 'm.brown' },
+      { name: 'LocalIP', type: 'ip', example: '10.9.1.34' },
+    ],
+    compatibleDestinations: ['siem-analytics', 'low-cost-store', 'operations'],
+    parsingAssumptions: [
+      'Falcon detection/event JSON records',
+      'Severity mapped from SeverityName',
+      'Endpoint fields (ComputerName/UserName) flagged for sensitivity review',
+    ],
+    sampleFeed: {
+      method: 'cribl-datagen',
+      internalTemplateRef: 'replay:crowdstrike_falcon',
+      approxEventsPerSecond: 50,
+      maintainerNote:
+        'App-shipped CrowdStrike Falcon JSON events replayed via a pipeline (datagen used only as a clock) so the data matches the cribl_crowdstrike pack.',
+    },
+    replaySample: {
+      events: crowdstrikeEvents,
+      sourcetype: crowdstrikeSampleMeta.sourcetype,
+      source: crowdstrikeSampleMeta.source,
+      index: crowdstrikeSampleMeta.index,
+    },
+  },
+  {
+    id: 'src-f5-bigip',
+    family: 'syslog',
+    displayName: 'F5 BIG-IP (LTM/ASM syslog)',
+    summary: 'Load balancer health, connection, and WAF-block logs over syslog.',
+    protocol: 'Syslog (RFC3164 over UDP/TCP)',
+    streamInputKind: 'syslog',
+    loopListenerKind: 'syslog',
+    datagenSample: 'f5_bigip',
+    defaultPort: 21024,
+    sampleSchema: [
+      { name: 'module', type: 'string', example: 'tmm' },
+      { name: 'id', type: 'string', example: '01260013' },
+      { name: 'pool', type: 'string', example: '/Common/web_pool' },
+      { name: 'status', type: 'string', example: 'up' },
+    ],
+    compatibleDestinations: ['siem-analytics', 'operations', 'low-cost-store'],
+    parsingAssumptions: [
+      'F5 module[pid]: id: message format',
+      'Timestamp taken from syslog header',
+      'ASM lines carry attack-type/blocking fields',
+    ],
+    sampleFeed: {
+      method: 'cribl-datagen',
+      internalTemplateRef: 'replay:f5_bigip',
+      approxEventsPerSecond: 70,
+      maintainerNote:
+        'App-shipped F5 BIG-IP syslog events replayed via a pipeline (datagen used only as a clock) so the data matches the cribl-f5-bigip pack.',
+    },
+    replaySample: {
+      events: f5BigipEvents,
+      sourcetype: f5BigipSampleMeta.sourcetype,
+      source: f5BigipSampleMeta.source,
+      index: f5BigipSampleMeta.index,
+    },
+  },
+  {
+    id: 'src-zscaler-internet-access',
+    family: 'security-lake',
+    displayName: 'Zscaler Internet Access (NSS web log)',
+    summary: 'Cloud web proxy allow/block decisions and threat categorization.',
+    protocol: 'JSON over TCP (NSS web log feed)',
+    streamInputKind: 'tcp',
+    loopListenerKind: 'tcp',
+    datagenSample: 'zscaler_nss',
+    defaultPort: 21025,
+    sampleSchema: [
+      { name: 'user', type: 'string', sensitive: true, example: 'a.smith@agency.local' },
+      { name: 'url', type: 'string', example: 'https://outlook.office.com/mail/' },
+      { name: 'action', type: 'string', example: 'Allowed' },
+      { name: 'urlcategory', type: 'string', example: 'Business and Economy' },
+      { name: 'threatname', type: 'string', example: 'Suspicious_C2_Beacon' },
+    ],
+    compatibleDestinations: ['siem-analytics', 'low-cost-store', 'operations'],
+    parsingAssumptions: [
+      'Zscaler NSS web-log JSON records',
+      'action field drives allow/block classification',
+      'urlcategory/threatname used for risk storytelling',
+    ],
+    sampleFeed: {
+      method: 'cribl-datagen',
+      internalTemplateRef: 'replay:zscaler_nss',
+      approxEventsPerSecond: 60,
+      maintainerNote:
+        'App-shipped Zscaler NSS JSON events replayed via a pipeline (datagen used only as a clock) so the data matches the cribl-zscaler pack.',
+    },
+    replaySample: {
+      events: zscalerEvents,
+      sourcetype: zscalerSampleMeta.sourcetype,
+      source: zscalerSampleMeta.source,
+      index: zscalerSampleMeta.index,
     },
   },
 ];

@@ -20,7 +20,15 @@ export const useCaseTemplates: UseCaseTemplate[] = [
     destinationPattern: 'Current SIEM + target SIEM (+ optional low-cost retention)',
     expectedOutcome: 'One source proven feeding two SIEMs with no interruption',
 
-    compatibleSourceProfileIds: ['src-pan-firewall-syslog', 'src-windows-security-events'],
+    compatibleSourceProfileIds: [
+      'src-pan-firewall-syslog',
+      'src-windows-security-events',
+      'src-cisco-asa-firewall',
+      'src-checkpoint-firewall',
+      'src-crowdstrike-falcon',
+      'src-f5-bigip',
+      'src-zscaler-internet-access',
+    ],
     compatiblePresentationModeIds: ['syslog-listener', 'windows-event-collector'],
     compatibleDestinationIds: [
       'dst-siem-current',
@@ -31,6 +39,11 @@ export const useCaseTemplates: UseCaseTemplate[] = [
     compatibleProcessingIds: [
       'proc-pack-firewall-optimization',
       'proc-custom-policy-routing',
+      'proc-pack-cisco-asa-cleanup',
+      'proc-pack-checkpoint',
+      'proc-pack-crowdstrike',
+      'proc-pack-f5-bigip',
+      'proc-pack-zscaler',
     ],
     compatibleVisualOutcomeIds: ['viz-dual-feed', 'viz-routing-split'],
     compatibleOverlayIds: ['overlay-pii', 'overlay-compliance-archive'],
@@ -68,7 +81,15 @@ export const useCaseTemplates: UseCaseTemplate[] = [
     destinationPattern: 'SIEM + Search/operational subset + Lake retention',
     expectedOutcome: 'Measurable volume reduction with the right data in each tier',
 
-    compatibleSourceProfileIds: ['src-pan-firewall-syslog', 'src-linux-infra-syslog'],
+    compatibleSourceProfileIds: [
+      'src-pan-firewall-syslog',
+      'src-linux-infra-syslog',
+      'src-cisco-asa-firewall',
+      'src-checkpoint-firewall',
+      'src-crowdstrike-falcon',
+      'src-f5-bigip',
+      'src-zscaler-internet-access',
+    ],
     compatiblePresentationModeIds: ['syslog-listener', 'file-monitor'],
     compatibleDestinationIds: [
       'dst-siem-current',
@@ -80,6 +101,11 @@ export const useCaseTemplates: UseCaseTemplate[] = [
     compatibleProcessingIds: [
       'proc-pack-firewall-optimization',
       'proc-custom-mask-reduce',
+      'proc-pack-cisco-asa-cleanup',
+      'proc-pack-checkpoint',
+      'proc-pack-crowdstrike',
+      'proc-pack-f5-bigip',
+      'proc-pack-zscaler',
     ],
     compatibleVisualOutcomeIds: ['viz-volume-reduction', 'viz-routing-split'],
     compatibleOverlayIds: [

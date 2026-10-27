@@ -394,6 +394,15 @@ export interface ScenarioSelection {
    * Only used by the AI-telemetry use case; defaults to `quick_search`.
    */
   engineId?: Id;
+  /**
+   * An SE-supplied sample, built at selection time rather than looked up from
+   * the static source registry (see `domain/samples/customUpload.ts`). When
+   * set, the planner uses this INSTEAD of resolving `sourceProfileId` from
+   * `sourceProfileById` — `sourceProfileId` still carries a stable placeholder
+   * id (`src-custom-<hash>`) for display/compat purposes. Embedded directly so
+   * saved/exported scenarios remain portable without a separate asset store.
+   */
+  customSource?: SourceProfile;
 }
 
 /** A selectable Cribl Search engine the demo dataset can be accelerated onto. */

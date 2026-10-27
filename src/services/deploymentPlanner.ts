@@ -991,7 +991,9 @@ export function buildDeploymentPlan(
 ): DeploymentPlan {
   const useCase = useCaseTemplateById.get(selection.useCaseId);
   const runMode = runModeById.get(selection.runMode);
-  const source = sourceProfileById.get(selection.sourceProfileId);
+  // An SE-uploaded sample (see domain/samples/customUpload.ts) is carried
+  // directly on the selection rather than looked up from the static registry.
+  const source = selection.customSource ?? sourceProfileById.get(selection.sourceProfileId);
   const presentation = presentationModeById.get(selection.presentationModeId);
   const processing = processingProfileById.get(selection.processingId);
 

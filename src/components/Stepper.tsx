@@ -9,26 +9,22 @@ interface StepperProps {
   onStepClick?: (index: number) => void;
 }
 
-/** Horizontal wizard progress indicator. */
+/**
+ * In-page section jump-nav. All sections are visible at once (no wizard
+ * gating), so every entry is always clickable — `activeIndex` just highlights
+ * whichever section is currently in view (scroll-spy), driven by the caller.
+ */
 export function Stepper({ steps, activeIndex, onStepClick }: StepperProps) {
   return (
     <ol className="stepper">
-      {steps.map((step, i) => {
-        const state = i < activeIndex ? 'done' : i === activeIndex ? 'active' : 'todo';
-        return (
-          <li key={step.key} className={`stepper-item is-${state}`}>
-            <button
-              type="button"
-              className="stepper-dot"
-              disabled={i > activeIndex || !onStepClick}
-              onClick={() => onStepClick?.(i)}
-            >
-              {state === 'done' ? '✓' : i + 1}
-            </button>
-            <span className="stepper-label">{step.label}</span>
-          </li>
-        );
-      })}
+      {steps.map((step, i) => (
+        <li key={step.key} className={`stepper-item${i === activeIndex ? ' is-active' : ''}`}>
+          <button type="button" className="stepper-dot" onClick={() => onStepClick?.(i)}>
+            {i + 1}
+          </button>
+          <span className="stepper-label">{step.label}</span>
+        </li>
+      ))}
     </ol>
   );
 }
