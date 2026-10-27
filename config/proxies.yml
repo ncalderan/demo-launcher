@@ -1,0 +1,52 @@
+# External API declaration. Declare domains your app needs to reach.
+# At install time, admins see exactly which endpoints the app will use.
+
+# ---------------------------------------------------------------------------
+# AI Investigator security demo — Cribl Lake Direct Access (HTTP) NDJSON ingest.
+#
+# The "AI Investigator security demo" use case backfills historical events
+# straight into Cribl Lake via the Direct Access HTTP ingest endpoint, which
+# lives on a per-tenant host of the form:
+#     https://direct-access-<suffix>.<tenant>.cribl.cloud:10080/datasets/<id>
+#
+# The exact subdomain is provisioned per workspace, so we declare the family
+# with a wildcard on the Direct Access ingest port (10080). The ingest token is
+# generated fresh per deploy, stored in this app's KV store under
+# `demoLakeIngestToken`, and injected here as the `Authorization` header — the
+# platform proxy strips any Authorization header the app sets itself, so it MUST
+# be injected server-side from KV.
+#
+# Preflight: if your tenant's Direct Access host does not match this pattern,
+# add its exact `host:10080` key below. The rest of the app is unaffected.
+"direct-access-*.cribl.cloud:10080":
+  timeout: 120000
+  headers:
+    inject:
+      Authorization: kv.demoLakeIngestToken
+    allowlist:
+      - content-type
+
+# api.example.com:
+#   paths:
+#     allowlist:
+#       - /v1/
+#       - /api/public/
+#     blocklist:
+#       - /v1/internal/
+#       - /api/admin/
+#   headers:
+#     inject:
+#       Authorization: '`Bearer ${kv.api_key}`'
+#       X-API-Version: '2024-01'
+#     allowlist:
+#       - Content-Type
+#       - x-request-id
+#       - x-*
+#     blocklist:
+#       - X-Sensitive-Header
+#       - Cookie
+#   timeout: 30000
+#   # Verify the upstream TLS certificate chain. Leave as `true` for production
+#   # endpoints. Set to `false` only when targeting trusted internal endpoints
+#   # that present self-signed or otherwise untrusted certificates.
+#   rejectUnauthorized: true

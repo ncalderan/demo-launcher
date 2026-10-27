@@ -1,0 +1,668 @@
+[
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 0,
+    "observed_time_unix_nano": 1784041733378017000,
+    "body": "Jul 14 15:08:53 noteworthy-hornet su: FAILED SU (to root) ubuntu on pts/0",
+    "dropped_attributes_count": 0,
+    "attributes": {
+      "log.file.name": "auth.log",
+      "log.file.path": "/var/log/auth.log"
+    },
+    "_time": 1784041733.378017
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 1784041733226246000,
+    "observed_time_unix_nano": 1784041733591347200,
+    "body": {
+      "_EXE": "/usr/bin/su",
+      "SYSLOG_IDENTIFIER": "su",
+      "_SYSTEMD_UNIT": "session-23.scope",
+      "_SYSTEMD_SLICE": "user-1000.slice",
+      "_GID": "1000",
+      "_SYSTEMD_SESSION": "23",
+      "_COMM": "su",
+      "SYSLOG_FACILITY": "4",
+      "_HOSTNAME": "noteworthy-hornet",
+      "_TRANSPORT": "syslog",
+      "_CMDLINE": "su -",
+      "__MONOTONIC_TIMESTAMP": "150341605212",
+      "_SOURCE_REALTIME_TIMESTAMP": "1784041733226108",
+      "_SYSTEMD_USER_SLICE": "-.slice",
+      "_SELINUX_CONTEXT": "unconfined\n",
+      "_CAP_EFFECTIVE": "1ffffffffff",
+      "_AUDIT_SESSION": "23",
+      "_BOOT_ID": "fa0aa38edd6a4949b40a1c02ecff9ceb",
+      "__CURSOR": "s=4c9166e907734ffd9e85013d2f2bc0b6;i=44ab;b=fa0aa38edd6a4949b40a1c02ecff9ceb;m=23010ed75c;t=6569395c5ff06;x=785c597e01ac1716",
+      "_PID": "1877680",
+      "_AUDIT_LOGINUID": "1000",
+      "MESSAGE": "FAILED SU (to root) ubuntu on pts/0",
+      "SYSLOG_TIMESTAMP": "Jul 14 15:08:53 ",
+      "_SYSTEMD_OWNER_UID": "1000",
+      "_UID": "1000",
+      "PRIORITY": "5",
+      "_SYSTEMD_CGROUP": "/user.slice/user-1000.slice/session-23.scope",
+      "_MACHINE_ID": "5568cbbc75914f4aadda9c4fb1be59b4",
+      "_SYSTEMD_INVOCATION_ID": "b833f7d8face4976bdcacf17450c95f5"
+    },
+    "dropped_attributes_count": 0,
+    "_time": 1784041733.2262459
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 0,
+    "observed_time_unix_nano": 1784041746388489700,
+    "body": "Jul 14 15:09:06 noteworthy-hornet su: pam_unix(su-l:auth): authentication failure; logname=ubuntu uid=1000 euid=0 tty=/dev/pts/0 ruser=ubuntu rhost=  user=root",
+    "dropped_attributes_count": 0,
+    "attributes": {
+      "log.file.path": "/var/log/auth.log",
+      "log.file.name": "auth.log"
+    },
+    "_time": 1784041746.3884897
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 1784041746237074000,
+    "observed_time_unix_nano": 1784041746581872600,
+    "body": {
+      "_MACHINE_ID": "5568cbbc75914f4aadda9c4fb1be59b4",
+      "_GID": "1000",
+      "_SELINUX_CONTEXT": "unconfined\n",
+      "_CMDLINE": "su -",
+      "_SYSTEMD_CGROUP": "/user.slice/user-1000.slice/session-23.scope",
+      "_SYSTEMD_SESSION": "23",
+      "SYSLOG_TIMESTAMP": "Jul 14 15:09:06 ",
+      "_UID": "1000",
+      "_HOSTNAME": "noteworthy-hornet",
+      "_SYSTEMD_USER_SLICE": "-.slice",
+      "_AUDIT_LOGINUID": "1000",
+      "_SYSTEMD_SLICE": "user-1000.slice",
+      "SYSLOG_FACILITY": "10",
+      "__CURSOR": "s=4c9166e907734ffd9e85013d2f2bc0b6;i=44ac;b=fa0aa38edd6a4949b40a1c02ecff9ceb;m=2301d55ee8;t=65693968c8692;x=7bf75d3bac42130e",
+      "_EXE": "/usr/bin/su",
+      "_SOURCE_REALTIME_TIMESTAMP": "1784041746236976",
+      "_BOOT_ID": "fa0aa38edd6a4949b40a1c02ecff9ceb",
+      "PRIORITY": "5",
+      "_CAP_EFFECTIVE": "1ffffffffff",
+      "MESSAGE": "pam_unix(su-l:auth): authentication failure; logname=ubuntu uid=1000 euid=0 tty=/dev/pts/0 ruser=ubuntu rhost=  user=root",
+      "__MONOTONIC_TIMESTAMP": "150354616040",
+      "_SYSTEMD_OWNER_UID": "1000",
+      "_AUDIT_SESSION": "23",
+      "_PID": "1877968",
+      "_SYSTEMD_UNIT": "session-23.scope",
+      "SYSLOG_IDENTIFIER": "su",
+      "_SYSTEMD_INVOCATION_ID": "b833f7d8face4976bdcacf17450c95f5",
+      "_COMM": "su",
+      "_TRANSPORT": "syslog"
+    },
+    "dropped_attributes_count": 0,
+    "_time": 1784041746.237074
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 0,
+    "observed_time_unix_nano": 1784041748390286800,
+    "body": "Jul 14 15:09:08 noteworthy-hornet su: FAILED SU (to root) ubuntu on pts/0",
+    "dropped_attributes_count": 0,
+    "attributes": {
+      "log.file.name": "auth.log",
+      "log.file.path": "/var/log/auth.log"
+    },
+    "_time": 1784041748.390287
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 1784041748306940000,
+    "observed_time_unix_nano": 1784041748582150700,
+    "body": {
+      "MESSAGE": "FAILED SU (to root) ubuntu on pts/0",
+      "PRIORITY": "5",
+      "_SYSTEMD_CGROUP": "/user.slice/user-1000.slice/session-23.scope",
+      "_SYSTEMD_UNIT": "session-23.scope",
+      "_SYSTEMD_SLICE": "user-1000.slice",
+      "_PID": "1877968",
+      "__CURSOR": "s=4c9166e907734ffd9e85013d2f2bc0b6;i=44ad;b=fa0aa38edd6a4949b40a1c02ecff9ceb;m=2301f4f451;t=6569396ac1bfc;x=8b033effea81523d",
+      "_SELINUX_CONTEXT": "unconfined\n",
+      "SYSLOG_IDENTIFIER": "su",
+      "_SYSTEMD_USER_SLICE": "-.slice",
+      "_BOOT_ID": "fa0aa38edd6a4949b40a1c02ecff9ceb",
+      "_SOURCE_REALTIME_TIMESTAMP": "1784041748306839",
+      "_HOSTNAME": "noteworthy-hornet",
+      "_COMM": "su",
+      "_SYSTEMD_OWNER_UID": "1000",
+      "SYSLOG_FACILITY": "4",
+      "_EXE": "/usr/bin/su",
+      "_TRANSPORT": "syslog",
+      "__MONOTONIC_TIMESTAMP": "150356685905",
+      "_MACHINE_ID": "5568cbbc75914f4aadda9c4fb1be59b4",
+      "_SYSTEMD_SESSION": "23",
+      "_CAP_EFFECTIVE": "1ffffffffff",
+      "_CMDLINE": "su -",
+      "_UID": "1000",
+      "_AUDIT_SESSION": "23",
+      "_GID": "1000",
+      "SYSLOG_TIMESTAMP": "Jul 14 15:09:08 ",
+      "_AUDIT_LOGINUID": "1000",
+      "_SYSTEMD_INVOCATION_ID": "b833f7d8face4976bdcacf17450c95f5"
+    },
+    "dropped_attributes_count": 0,
+    "_time": 1784041748.3069398
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 0,
+    "observed_time_unix_nano": 1784041757572903700,
+    "body": "Jul 14 15:09:17 noteworthy-hornet sudo:   ubuntu : TTY=pts/0 ; PWD=/ ; USER=root ; COMMAND=/usr/bin/chown 123",
+    "dropped_attributes_count": 0,
+    "attributes": {
+      "log.file.path": "/var/log/auth.log",
+      "log.file.name": "auth.log"
+    },
+    "_time": 1784041757.5729036
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 0,
+    "observed_time_unix_nano": 1784041757572909600,
+    "body": "Jul 14 15:09:17 noteworthy-hornet sudo: pam_unix(sudo:session): session opened for user root(uid=0) by ubuntu(uid=1000)",
+    "dropped_attributes_count": 0,
+    "attributes": {
+      "log.file.path": "/var/log/auth.log",
+      "log.file.name": "auth.log"
+    },
+    "_time": 1784041757.5729096
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 0,
+    "observed_time_unix_nano": 1784041757572911000,
+    "body": "Jul 14 15:09:17 noteworthy-hornet sudo: pam_unix(sudo:session): session closed for user root",
+    "dropped_attributes_count": 0,
+    "attributes": {
+      "log.file.name": "auth.log",
+      "log.file.path": "/var/log/auth.log"
+    },
+    "_time": 1784041757.572911
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 1784041757401525000,
+    "observed_time_unix_nano": 1784041757833254000,
+    "body": {
+      "_CAP_EFFECTIVE": "1ffffffffff",
+      "_SYSTEMD_UNIT": "session-23.scope",
+      "__MONOTONIC_TIMESTAMP": "150365780491",
+      "__CURSOR": "s=4c9166e907734ffd9e85013d2f2bc0b6;i=44ae;b=fa0aa38edd6a4949b40a1c02ecff9ceb;m=23027fba0b;t=656939736e1b5;x=962582644ede8c8e",
+      "_AUDIT_LOGINUID": "1000",
+      "SYSLOG_FACILITY": "10",
+      "_SYSTEMD_OWNER_UID": "1000",
+      "_SOURCE_REALTIME_TIMESTAMP": "1784041757401412",
+      "_SELINUX_CONTEXT": "unconfined\n",
+      "_BOOT_ID": "fa0aa38edd6a4949b40a1c02ecff9ceb",
+      "_SYSTEMD_USER_SLICE": "-.slice",
+      "_HOSTNAME": "noteworthy-hornet",
+      "_TRANSPORT": "syslog",
+      "_UID": "1000",
+      "PRIORITY": "5",
+      "_EXE": "/usr/bin/sudo",
+      "_MACHINE_ID": "5568cbbc75914f4aadda9c4fb1be59b4",
+      "_CMDLINE": "sudo chown 123",
+      "_AUDIT_SESSION": "23",
+      "_SYSTEMD_INVOCATION_ID": "b833f7d8face4976bdcacf17450c95f5",
+      "_SYSTEMD_CGROUP": "/user.slice/user-1000.slice/session-23.scope",
+      "_GID": "1000",
+      "SYSLOG_IDENTIFIER": "sudo",
+      "SYSLOG_TIMESTAMP": "Jul 14 15:09:17 ",
+      "_SYSTEMD_SLICE": "user-1000.slice",
+      "_SYSTEMD_SESSION": "23",
+      "_COMM": "sudo",
+      "MESSAGE": "  ubuntu : TTY=pts/0 ; PWD=/ ; USER=root ; COMMAND=/usr/bin/chown 123",
+      "_PID": "1878243"
+    },
+    "dropped_attributes_count": 0,
+    "_time": 1784041757.401525
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 1784041757430523000,
+    "observed_time_unix_nano": 1784041757833309400,
+    "body": {
+      "_SYSTEMD_CGROUP": "/user.slice/user-1000.slice/session-23.scope",
+      "_SYSTEMD_SLICE": "user-1000.slice",
+      "SYSLOG_FACILITY": "10",
+      "PRIORITY": "6",
+      "_EXE": "/usr/bin/sudo",
+      "_SOURCE_REALTIME_TIMESTAMP": "1784041757408332",
+      "_CMDLINE": "sudo chown 123",
+      "SYSLOG_IDENTIFIER": "sudo",
+      "_GID": "0",
+      "__MONOTONIC_TIMESTAMP": "150365809489",
+      "_SYSTEMD_SESSION": "23",
+      "_SYSTEMD_OWNER_UID": "1000",
+      "_SYSTEMD_USER_SLICE": "-.slice",
+      "SYSLOG_TIMESTAMP": "Jul 14 15:09:17 ",
+      "_COMM": "sudo",
+      "_PID": "1878243",
+      "_SYSTEMD_INVOCATION_ID": "b833f7d8face4976bdcacf17450c95f5",
+      "__CURSOR": "s=4c9166e907734ffd9e85013d2f2bc0b6;i=44af;b=fa0aa38edd6a4949b40a1c02ecff9ceb;m=2302802b51;t=65693973752fb;x=4f5f895348b0b782",
+      "_CAP_EFFECTIVE": "1ffffffffff",
+      "MESSAGE": "pam_unix(sudo:session): session opened for user root(uid=0) by ubuntu(uid=1000)",
+      "_SYSTEMD_UNIT": "session-23.scope",
+      "_UID": "1000",
+      "_TRANSPORT": "syslog",
+      "_HOSTNAME": "noteworthy-hornet",
+      "_AUDIT_LOGINUID": "1000",
+      "_MACHINE_ID": "5568cbbc75914f4aadda9c4fb1be59b4",
+      "_AUDIT_SESSION": "23",
+      "_BOOT_ID": "fa0aa38edd6a4949b40a1c02ecff9ceb",
+      "_SELINUX_CONTEXT": "unconfined\n"
+    },
+    "dropped_attributes_count": 0,
+    "_time": 1784041757.430523
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 1784041757441486000,
+    "observed_time_unix_nano": 1784041757833325800,
+    "body": {
+      "SYSLOG_FACILITY": "10",
+      "_SOURCE_REALTIME_TIMESTAMP": "1784041757441470",
+      "SYSLOG_TIMESTAMP": "Jul 14 15:09:17 ",
+      "_UID": "1000",
+      "_SYSTEMD_UNIT": "session-23.scope",
+      "_TRANSPORT": "syslog",
+      "_AUDIT_SESSION": "23",
+      "_AUDIT_LOGINUID": "1000",
+      "_GID": "0",
+      "_BOOT_ID": "fa0aa38edd6a4949b40a1c02ecff9ceb",
+      "_SYSTEMD_CGROUP": "/user.slice/user-1000.slice/session-23.scope",
+      "_SYSTEMD_SLICE": "user-1000.slice",
+      "_MACHINE_ID": "5568cbbc75914f4aadda9c4fb1be59b4",
+      "MESSAGE": "pam_unix(sudo:session): session closed for user root",
+      "_COMM": "sudo",
+      "_CAP_EFFECTIVE": "1ffffffffff",
+      "SYSLOG_IDENTIFIER": "sudo",
+      "_EXE": "/usr/bin/sudo",
+      "_PID": "1878243",
+      "_HOSTNAME": "noteworthy-hornet",
+      "_SYSTEMD_USER_SLICE": "-.slice",
+      "__CURSOR": "s=4c9166e907734ffd9e85013d2f2bc0b6;i=44b0;b=fa0aa38edd6a4949b40a1c02ecff9ceb;m=2302805623;t=6569397377dce;x=bca940625850c0b3",
+      "_SYSTEMD_INVOCATION_ID": "b833f7d8face4976bdcacf17450c95f5",
+      "_SELINUX_CONTEXT": "unconfined\n",
+      "_SYSTEMD_OWNER_UID": "1000",
+      "__MONOTONIC_TIMESTAMP": "150365820451",
+      "_SYSTEMD_SESSION": "23",
+      "_CMDLINE": "sudo chown 123",
+      "PRIORITY": "6"
+    },
+    "dropped_attributes_count": 0,
+    "_time": 1784041757.4414861
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 0,
+    "observed_time_unix_nano": 1784041762400476000,
+    "body": "Jul 14 15:09:22 noteworthy-hornet sudo:   ubuntu : TTY=pts/0 ; PWD=/ ; USER=root ; COMMAND=/usr/bin/chown - r",
+    "dropped_attributes_count": 0,
+    "attributes": {
+      "log.file.path": "/var/log/auth.log",
+      "log.file.name": "auth.log"
+    },
+    "_time": 1784041762.400476
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 0,
+    "observed_time_unix_nano": 1784041762400483300,
+    "body": "Jul 14 15:09:22 noteworthy-hornet sudo: pam_unix(sudo:session): session opened for user root(uid=0) by ubuntu(uid=1000)",
+    "dropped_attributes_count": 0,
+    "attributes": {
+      "log.file.path": "/var/log/auth.log",
+      "log.file.name": "auth.log"
+    },
+    "_time": 1784041762.4004834
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 0,
+    "observed_time_unix_nano": 1784041762400484600,
+    "body": "Jul 14 15:09:22 noteworthy-hornet sudo: pam_unix(sudo:session): session closed for user root",
+    "dropped_attributes_count": 0,
+    "attributes": {
+      "log.file.name": "auth.log",
+      "log.file.path": "/var/log/auth.log"
+    },
+    "_time": 1784041762.4004846
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 1784041762325009000,
+    "observed_time_unix_nano": 1784041762589347800,
+    "body": {
+      "_SYSTEMD_OWNER_UID": "1000",
+      "__CURSOR": "s=4c9166e907734ffd9e85013d2f2bc0b6;i=44b1;b=fa0aa38edd6a4949b40a1c02ecff9ceb;m=2302cada66;t=6569397820211;x=aa7e0a5ce4cf3f65",
+      "_AUDIT_SESSION": "23",
+      "_SYSTEMD_UNIT": "session-23.scope",
+      "_BOOT_ID": "fa0aa38edd6a4949b40a1c02ecff9ceb",
+      "_PID": "1878324",
+      "_CAP_EFFECTIVE": "1ffffffffff",
+      "_HOSTNAME": "noteworthy-hornet",
+      "_TRANSPORT": "syslog",
+      "_CMDLINE": "sudo chown - r",
+      "_COMM": "sudo",
+      "_SYSTEMD_CGROUP": "/user.slice/user-1000.slice/session-23.scope",
+      "_SYSTEMD_SLICE": "user-1000.slice",
+      "SYSLOG_TIMESTAMP": "Jul 14 15:09:22 ",
+      "SYSLOG_FACILITY": "10",
+      "PRIORITY": "5",
+      "SYSLOG_IDENTIFIER": "sudo",
+      "_SYSTEMD_INVOCATION_ID": "b833f7d8face4976bdcacf17450c95f5",
+      "MESSAGE": "  ubuntu : TTY=pts/0 ; PWD=/ ; USER=root ; COMMAND=/usr/bin/chown - r",
+      "_GID": "1000",
+      "__MONOTONIC_TIMESTAMP": "150370703974",
+      "_SOURCE_REALTIME_TIMESTAMP": "1784041762324915",
+      "_SELINUX_CONTEXT": "unconfined\n",
+      "_AUDIT_LOGINUID": "1000",
+      "_MACHINE_ID": "5568cbbc75914f4aadda9c4fb1be59b4",
+      "_SYSTEMD_USER_SLICE": "-.slice",
+      "_UID": "1000",
+      "_EXE": "/usr/bin/sudo",
+      "_SYSTEMD_SESSION": "23"
+    },
+    "dropped_attributes_count": 0,
+    "_time": 1784041762.3250089
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 1784041762328581000,
+    "observed_time_unix_nano": 1784041762589414700,
+    "body": {
+      "_SYSTEMD_CGROUP": "/user.slice/user-1000.slice/session-23.scope",
+      "_UID": "1000",
+      "_HOSTNAME": "noteworthy-hornet",
+      "_MACHINE_ID": "5568cbbc75914f4aadda9c4fb1be59b4",
+      "_TRANSPORT": "syslog",
+      "_SYSTEMD_SESSION": "23",
+      "MESSAGE": "pam_unix(sudo:session): session opened for user root(uid=0) by ubuntu(uid=1000)",
+      "_CMDLINE": "sudo chown - r",
+      "_SOURCE_REALTIME_TIMESTAMP": "1784041762328549",
+      "_SYSTEMD_USER_SLICE": "-.slice",
+      "_CAP_EFFECTIVE": "1ffffffffff",
+      "_COMM": "sudo",
+      "__MONOTONIC_TIMESTAMP": "150370707546",
+      "SYSLOG_FACILITY": "10",
+      "_EXE": "/usr/bin/sudo",
+      "PRIORITY": "6",
+      "_SYSTEMD_SLICE": "user-1000.slice",
+      "_AUDIT_SESSION": "23",
+      "_GID": "0",
+      "_SYSTEMD_OWNER_UID": "1000",
+      "SYSLOG_TIMESTAMP": "Jul 14 15:09:22 ",
+      "_SELINUX_CONTEXT": "unconfined\n",
+      "_SYSTEMD_INVOCATION_ID": "b833f7d8face4976bdcacf17450c95f5",
+      "_AUDIT_LOGINUID": "1000",
+      "_BOOT_ID": "fa0aa38edd6a4949b40a1c02ecff9ceb",
+      "__CURSOR": "s=4c9166e907734ffd9e85013d2f2bc0b6;i=44b2;b=fa0aa38edd6a4949b40a1c02ecff9ceb;m=2302cae85a;t=6569397821005;x=ccb7f71d75853c3e",
+      "SYSLOG_IDENTIFIER": "sudo",
+      "_PID": "1878324",
+      "_SYSTEMD_UNIT": "session-23.scope"
+    },
+    "dropped_attributes_count": 0,
+    "_time": 1784041762.328581
+  },
+  {
+    "schema_url": "https://opentelemetry.io/schemas/1.40.0",
+    "resource": {
+      "dropped_attributes_count": 0,
+      "attributes": {
+        "host.name": "noteworthy-hornet",
+        "os.type": "linux"
+      }
+    },
+    "scope": {
+      "name": "unknown",
+      "version": "unknown",
+      "dropped_attributes_count": 0
+    },
+    "time_unix_nano": 1784041762333610000,
+    "observed_time_unix_nano": 1784041762589694500,
+    "body": {
+      "_HOSTNAME": "noteworthy-hornet",
+      "_AUDIT_LOGINUID": "1000",
+      "_EXE": "/usr/bin/sudo",
+      "_MACHINE_ID": "5568cbbc75914f4aadda9c4fb1be59b4",
+      "_SYSTEMD_CGROUP": "/user.slice/user-1000.slice/session-23.scope",
+      "_GID": "0",
+      "_CMDLINE": "sudo chown - r",
+      "_SYSTEMD_OWNER_UID": "1000",
+      "_PID": "1878324",
+      "MESSAGE": "pam_unix(sudo:session): session closed for user root",
+      "SYSLOG_TIMESTAMP": "Jul 14 15:09:22 ",
+      "_SOURCE_REALTIME_TIMESTAMP": "1784041762333547",
+      "SYSLOG_IDENTIFIER": "sudo",
+      "_SYSTEMD_USER_SLICE": "-.slice",
+      "_SELINUX_CONTEXT": "unconfined\n",
+      "_UID": "1000",
+      "_BOOT_ID": "fa0aa38edd6a4949b40a1c02ecff9ceb",
+      "__CURSOR": "s=4c9166e907734ffd9e85013d2f2bc0b6;i=44b3;b=fa0aa38edd6a4949b40a1c02ecff9ceb;m=2302cafbff;t=65693978223aa;x=c436020a59b0f395",
+      "_SYSTEMD_SLICE": "user-1000.slice",
+      "SYSLOG_FACILITY": "10",
+      "_CAP_EFFECTIVE": "1ffffffffff",
+      "_AUDIT_SESSION": "23",
+      "PRIORITY": "6",
+      "_SYSTEMD_SESSION": "23",
+      "_SYSTEMD_INVOCATION_ID": "b833f7d8face4976bdcacf17450c95f5",
+      "_COMM": "sudo",
+      "__MONOTONIC_TIMESTAMP": "150370712575",
+      "_TRANSPORT": "syslog",
+      "_SYSTEMD_UNIT": "session-23.scope"
+    },
+    "dropped_attributes_count": 0,
+    "_time": 1784041762.33361
+  }
+]
