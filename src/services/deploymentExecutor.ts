@@ -6,6 +6,7 @@ import type {
 import {
   accelerateDataset,
   addDatasetRoute,
+  applyDatasetBreakerRuleset,
   commitAndDeploy,
   createOrReuseLakeDataset,
   ensureLakeDirectAccessSource,
@@ -58,6 +59,7 @@ const SOFT_OP_TYPES = new Set([
   'route-dataset',
   'put-ingest-token',
   'tag-federated-dataset',
+  'apply-datatype',
 ]);
 
 export interface ExecuteOptions {
@@ -175,6 +177,9 @@ async function runAction(
           description: action.op.description,
           tags: action.op.tags,
         });
+        return { ...base, status: 'succeeded' };
+      case 'apply-datatype':
+        await applyDatasetBreakerRuleset(action.op.objectId, action.op.breakerRuleset);
         return { ...base, status: 'succeeded' };
       case 'create-saved-search':
         await upsertSavedSearch(action.op.objectId, action.op.config);

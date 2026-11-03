@@ -3,8 +3,8 @@
  *
  * The model intentionally separates six independent building blocks
  * (use cases, source profiles, presentation modes, destinations, processing,
- * visual outcomes) so new Public Sector — or, later, other vertical — scenarios
- * can be assembled from reusable pieces rather than hardcoded flows.
+ * visual outcomes) so new demo scenarios — across any vertical — can be
+ * assembled from reusable pieces rather than hardcoded flows.
  *
  * Demo-realism note: the visible "source" the SE selects is always a realistic
  * protocol/collector path (syslog, TCP, Windows event). Any underlying sample
@@ -14,7 +14,7 @@
 
 export type Id = string;
 
-/** High-level Public Sector buying motions a use case can map to. */
+/** High-level buying motions a use case can map to. */
 export type PublicSectorMotion =
   | 'siem-cost-containment'
   | 'data-sovereignty'
@@ -188,7 +188,26 @@ export interface SourceProfile {
    * Used where the data must exactly match a pack (e.g. Windows XML events).
    */
   replaySample?: ReplaySample;
+  /** Visual icon for this source — see `IconSpec`. */
+  icon: IconSpec;
 }
+
+/**
+ * A visual icon for a source or destination.
+ * - `kind: 'brand-svg'`: the real vendor logo's own SVG markup, recolorable
+ *   to its own brand color via `hex` (`fill="currentColor"` + CSS `color`) —
+ *   from `simple-icons` or a vetted downloaded/provided brand SVG.
+ * - `kind: 'brand-image'`: a real vendor logo as a raster image (PNG) where
+ *   no clean recolorable SVG was available — rendered at its own native
+ *   colors, same as any other third-party mark.
+ * - `kind: 'generic'`: the shared fallback glyph (in the app's own accent
+ *   color) when no real vendor logo is available (confirmed unavailable,
+ *   not just unchecked).
+ */
+export type IconSpec =
+  | { kind: 'brand-svg'; svg: string; hex: string; label: string }
+  | { kind: 'brand-image'; src: string; label: string }
+  | { kind: 'generic' };
 
 /**
  * A bundled, app-shipped sample set that is replayed into the platform instead
@@ -235,6 +254,8 @@ export interface DestinationProfile {
   summary: string;
   /** e.g. "Splunk", "Amazon S3", "Local filesystem (sovereign)". */
   technology: string;
+  /** Visual icon for this destination — see `IconSpec`. */
+  icon: IconSpec;
   /** Relative cost signal used in cost-control storytelling. */
   costTier: 'high' | 'medium' | 'low';
   /**
@@ -305,6 +326,17 @@ export interface UseCaseTemplate {
   themes: ValueTheme[];
   /** Primary visible source types the story leans on. */
   primarySourceProfileIds: Id[];
+  /**
+   * The landing tile's icon. Usually `kind: 'product'` — which Cribl product
+   * this scenario primarily showcases (deliberately NOT the source's vendor
+   * logo; vendor icons belong in the Wizard's source/destination pickers,
+   * where you're choosing a specific data source). `kind: 'primary-source'`
+   * opts a use case back into showing its first `primarySourceProfileIds`
+   * entry's own vendor icon instead — for scenarios where the vendor IS the
+   * point (e.g. the AI Observability use case is specifically about Claude
+   * Code's data, not a generic product pitch).
+   */
+  tileIcon: { kind: 'product'; product: 'stream' | 'lake' | 'search' | 'lakehouse' } | { kind: 'primary-source' };
   /** Destination pattern description for the tile. */
   destinationPattern: string;
   /** One-line expected demo outcome for the tile. */
@@ -328,6 +360,17 @@ export interface UseCaseTemplate {
 
   /** Overlays this template supports layering on. */
   compatibleOverlayIds: OverlayId[];
+
+  /**
+   * When true, this use case routes natively into an existing Cribl Search
+   * Lakehouse (Local Search) engine instead of the usual destination tiles —
+   * see `uc-lakehouse-engine`. The wizard's destination step live-discovers
+   * engines (`listSearchEngines`) and hard-blocks deploy if none exist; no
+   * auto-provisioning in v1.
+   */
+  requiresSearchEngine?: boolean;
+  /** Short prerequisite line shown on the landing tile, e.g. "Requires an existing Lakehouse engine". */
+  requirementNote?: string;
 
   /** "What to say" panel: field-ready story beats for the SE. */
   talkTrack: TalkTrack;
@@ -390,8 +433,10 @@ export interface ScenarioSelection {
   overlayIds: OverlayId[];
   visualOutcomeIds: Id[];
   /**
-   * Cribl Search engine to accelerate the demo's Lake dataset with (Lakehouse).
-   * Only used by the AI-telemetry use case; defaults to `quick_search`.
+   * Cribl Search engine to route this demo's data into (Lakehouse). Set by
+   * `uc-lakehouse-engine` from the SE's pick among the org's actual
+   * provisioned engines (see `listSearchEngines` in `criblApi.ts`); absent
+   * from every other use case.
    */
   engineId?: Id;
   /**
@@ -403,6 +448,14 @@ export interface ScenarioSelection {
    * saved/exported scenarios remain portable without a separate asset store.
    */
   customSource?: SourceProfile;
+  /**
+   * SE-provided OTLP/HTTP ingest host:port for the real "AI Observability"
+   * marketplace app's own listener (copied from that app's Setup Wizard,
+   * which provisions it — we cannot discover it ourselves; see
+   * `uc-ai-observability` in `useCaseTemplates.ts`). Only used by that use
+   * case; absent from every other scenario.
+   */
+  otelIngestHost?: string;
 }
 
 /** A selectable Cribl Search engine the demo dataset can be accelerated onto. */
@@ -532,6 +585,10 @@ export type DeploymentOp =
   | { type: 'create-search-source'; objectId: string; port: number; config: Record<string, unknown> }
   | { type: 'create-search-output'; objectId: string; port: number; config: Record<string, unknown> }
   | { type: 'route-dataset'; engineId: string; datasetId: string; sourceId: string }
+  // Best-effort: bind a breaker ruleset onto a dataset so events are
+  // classified/parsed natively (a real datatype) rather than relying on
+  // search-time `extract()` alone. See `applyDatasetBreakerRuleset`.
+  | { type: 'apply-datatype'; objectId: string; breakerRuleset: string }
   | { type: 'create-saved-search'; objectId: string; config: Record<string, unknown> }
   | { type: 'create-dashboard'; objectId: string; config: Record<string, unknown> }
   // ---- Historical-backfill (AI Investigator security demo) ----
@@ -583,6 +640,9 @@ export interface CriblObjectSpec {
     | 'pipeline'
     | 'pack'
     | 'lake-dataset'
+    | 'lakehouse-dataset'
+    | 'search-source'
+    | 'search-output'
     | 'saved-search'
     | 'dashboard';
   id: string;
@@ -595,6 +655,7 @@ export interface CriblObjectSpec {
     | 'pipeline'
     | 'pack'
     | 'search-dataset'
+    | 'search-source'
     | 'saved-search'
     | 'dashboard';
   hidden: boolean;

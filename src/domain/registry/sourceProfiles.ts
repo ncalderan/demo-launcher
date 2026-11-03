@@ -1,4 +1,8 @@
 import type { SourceProfile } from '../types';
+import { siCisco, siClaudecode, siF5, siLinux, siPaloaltonetworks } from 'simple-icons';
+import crowdstrikeSvgRaw from '../../assets/icons/crowdstrike.svg?raw';
+import checkpointPng from '../../assets/icons/checkpoint.png';
+import zscalerPng from '../../assets/icons/zscaler.png';
 import {
   windowsSecurityEvents,
   windowsSecuritySampleMeta,
@@ -17,6 +21,37 @@ import { crowdstrikeEvents, crowdstrikeSampleMeta } from '../samples/crowdstrike
 import { f5BigipEvents, f5BigipSampleMeta } from '../samples/f5Bigip';
 import { zscalerEvents, zscalerSampleMeta } from '../samples/zscaler';
 
+const GENERIC_ICON = { kind: 'generic' as const };
+
+/**
+ * Microsoft Windows logo. Not in `simple-icons` (Microsoft OS marks are
+ * excluded there) — sourced from draw.io's public icon CDN
+ * (icons.diagrams.net), confirmed live and downloaded into the repo so the
+ * app has no runtime dependency on an external host for it.
+ */
+const WINDOWS_ICON = {
+  kind: 'brand-svg' as const,
+  label: 'Windows',
+  hex: '29ABE2',
+  svg: '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><g opacity="0.3"><path d="M39.5,22.5h-12c-0.3,0-0.5,0.2-0.5,0.5v9.1c0,0.3,0.2,0.5,0.4,0.5l12,1.4h0.1c0.3,0,0.5-0.2,0.5-0.5V23C40,22.7,39.8,22.5,39.5,22.5L39.5,22.5z" fill="currentColor"/><path d="M39.8,8.1C39.7,8,39.6,8,39.4,8l-12,1.4c-0.3,0-0.4,0.2-0.4,0.5V20c0,0.3,0.2,0.5,0.5,0.5h12c0.3,0,0.5-0.2,0.5-0.5V8.5C40,8.4,39.9,8.2,39.8,8.1z" fill="currentColor"/><path d="M24.4,9.8l-10,1.2c-0.3,0-0.4,0.2-0.4,0.5V20c0,0.3,0.2,0.5,0.5,0.5h10c0.3,0,0.5-0.2,0.5-0.5v-9.7C25,10,24.8,9.8,24.4,9.8C24.5,9.8,24.5,9.8,24.4,9.8z" fill="currentColor"/><path d="M24.5,22.5h-10c-0.3,0-0.5,0.2-0.5,0.5v7.5c0,0.3,0.2,0.5,0.4,0.5l10,1.2h0.1c0.3,0,0.5-0.2,0.5-0.5V23C25,22.7,24.8,22.5,24.5,22.5z" fill="currentColor"/></g><path d="M28.8,19.1C28.7,19,28.6,19,28.4,19l-10,1.2c-0.3,0-0.4,0.2-0.4,0.5v7.8c0,0.3,0.2,0.5,0.5,0.5h10c0.3,0,0.5-0.2,0.5-0.5v-9C29,19.4,28.9,19.2,28.8,19.1z M28,28h-9v-6.9l9-1.1V28z" fill="currentColor"/><path d="M15.4,20.5l-8,1C7.2,21.6,7,21.8,7,22v6.5C7,28.8,7.2,29,7.5,29h8c0.3,0,0.5-0.2,0.5-0.5V21C16,20.7,15.8,20.5,15.4,20.5C15.5,20.5,15.5,20.5,15.4,20.5L15.4,20.5z M15,28H8v-5.6l7-0.8V28z" fill="currentColor"/><path d="M15.5,31h-8C7.2,31,7,31.2,7,31.5V38c0,0.3,0.2,0.5,0.4,0.5l8,1h0.1c0.3,0,0.5-0.2,0.5-0.5v-7.5C16,31.2,15.8,31,15.5,31z M15,38.4l-7-0.8V32h7V38.4z" fill="currentColor"/><path d="M28.5,31h-10c-0.3,0-0.5,0.2-0.5,0.5v7.8c0,0.3,0.2,0.5,0.4,0.5l10,1.2h0.1c0.3,0,0.5-0.2,0.5-0.5v-9C29,31.2,28.8,31,28.5,31z M28,39.9l-9-1.1V32h9V39.9z" fill="currentColor"/></svg>',
+};
+
+/** CrowdStrike's real falcon mark, provided directly (neither simple-icons nor draw.io had it). */
+const CROWDSTRIKE_ICON = {
+  kind: 'brand-svg' as const,
+  label: 'CrowdStrike',
+  hex: 'DA1B1B',
+  svg: crowdstrikeSvgRaw.replace(/fill="#da1b1b"/i, 'fill="currentColor"'),
+};
+
+/**
+ * Check Point's and Zscaler's real logo marks, provided directly (neither
+ * simple-icons nor draw.io had them). Raster: not cleanly recolorable,
+ * rendered at their own native brand colors like any other third-party mark.
+ */
+const CHECKPOINT_ICON = { kind: 'brand-image' as const, src: checkpointPng, label: 'Check Point' };
+const ZSCALER_ICON = { kind: 'brand-image' as const, src: zscalerPng, label: 'Zscaler' };
+
 /**
  * Visible source profiles. Each describes a realistic protocol/collector path.
  * `sampleFeed` is the only place the under-the-hood sample mechanism is named;
@@ -26,6 +61,7 @@ export const sourceProfiles: SourceProfile[] = [
   {
     id: 'src-pan-firewall-syslog',
     family: 'syslog',
+    icon: { kind: 'brand-svg', svg: siPaloaltonetworks.svg, hex: siPaloaltonetworks.hex, label: siPaloaltonetworks.title },
     displayName: 'Palo Alto Firewall (syslog)',
     summary: 'Perimeter firewall traffic and threat logs over syslog.',
     protocol: 'Syslog (RFC5424 over UDP/TCP)',
@@ -57,6 +93,7 @@ export const sourceProfiles: SourceProfile[] = [
   {
     id: 'src-windows-security-events',
     family: 'windows-event',
+    icon: WINDOWS_ICON,
     displayName: 'Windows Server (Security event log)',
     summary: 'Windows Security channel events from domain-joined servers.',
     protocol: 'Windows Event Collector (WEF/WEC)',
@@ -94,6 +131,7 @@ export const sourceProfiles: SourceProfile[] = [
   },
   {
     id: 'src-generic-tcp-appliance',
+    icon: GENERIC_ICON,
     family: 'tcp',
     displayName: 'Network Appliance (generic TCP)',
     summary: 'Line-delimited telemetry from a generic TCP-emitting appliance.',
@@ -124,6 +162,7 @@ export const sourceProfiles: SourceProfile[] = [
   },
   {
     id: 'src-linux-infra-syslog',
+    icon: { kind: 'brand-svg', svg: siLinux.svg, hex: siLinux.hex, label: siLinux.title },
     family: 'linux-infra',
     displayName: 'Linux Server (infra logs)',
     summary: 'OS and service logs from Linux infrastructure over syslog.',
@@ -164,6 +203,7 @@ export const sourceProfiles: SourceProfile[] = [
   },
   {
     id: 'src-ai-claude-otel',
+    icon: { kind: 'brand-svg', svg: siClaudecode.svg, hex: siClaudecode.hex, label: siClaudecode.title },
     family: 'ai-telemetry',
     displayName: 'Claude Code (OpenTelemetry)',
     summary: 'AI coding-agent telemetry (tokens, cost, models, prompts) over OTel.',
@@ -207,10 +247,11 @@ export const sourceProfiles: SourceProfile[] = [
   },
   {
     id: 'src-security-lake-backfill',
+    icon: GENERIC_ICON,
     family: 'security-lake',
     displayName: 'Correlated security telemetry (Cribl Lake)',
     summary:
-      'Historically-backfilled endpoint, DNS, firewall, identity, and VCS logs modeling a supply-chain compromise, written to Cribl Lake for AI Investigator federated search.',
+      'Backdated endpoint, DNS, firewall, identity, and VCS logs modeling a supply-chain compromise, ready for AI Investigator.',
     protocol: 'Cribl Lake Direct Access (HTTP NDJSON)',
     streamInputKind: 'tcp',
     loopListenerKind: 'tcp',
@@ -243,6 +284,7 @@ export const sourceProfiles: SourceProfile[] = [
   },
   {
     id: 'src-cisco-asa-firewall',
+    icon: { kind: 'brand-svg', svg: siCisco.svg, hex: siCisco.hex, label: siCisco.title },
     family: 'syslog',
     displayName: 'Cisco ASA Firewall (syslog)',
     summary: 'Perimeter firewall connection, deny, and VPN logs over syslog.',
@@ -280,6 +322,7 @@ export const sourceProfiles: SourceProfile[] = [
   },
   {
     id: 'src-checkpoint-firewall',
+    icon: CHECKPOINT_ICON,
     family: 'syslog',
     displayName: 'Check Point Firewall (syslog)',
     summary: 'Perimeter firewall accept/drop, VPN, and NAT logs over syslog.',
@@ -317,6 +360,7 @@ export const sourceProfiles: SourceProfile[] = [
   },
   {
     id: 'src-crowdstrike-falcon',
+    icon: CROWDSTRIKE_ICON,
     family: 'security-lake',
     displayName: 'CrowdStrike Falcon (EDR)',
     summary: 'Endpoint detections and process telemetry from CrowdStrike Falcon.',
@@ -354,6 +398,7 @@ export const sourceProfiles: SourceProfile[] = [
   },
   {
     id: 'src-f5-bigip',
+    icon: { kind: 'brand-svg', svg: siF5.svg, hex: siF5.hex, label: siF5.title },
     family: 'syslog',
     displayName: 'F5 BIG-IP (LTM/ASM syslog)',
     summary: 'Load balancer health, connection, and WAF-block logs over syslog.',
@@ -390,6 +435,7 @@ export const sourceProfiles: SourceProfile[] = [
   },
   {
     id: 'src-zscaler-internet-access',
+    icon: ZSCALER_ICON,
     family: 'security-lake',
     displayName: 'Zscaler Internet Access (NSS web log)',
     summary: 'Cloud web proxy allow/block decisions and threat categorization.',

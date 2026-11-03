@@ -164,9 +164,35 @@ async function listIds(path: string): Promise<string[]> {
     .filter((id) => id.length > 0);
 }
 
+/** Full item configs (not just ids) at a collection endpoint. */
+async function listItems(path: string): Promise<Array<Record<string, unknown>>> {
+  const data = await request<{ items?: Array<Record<string, unknown>> }>('GET', path);
+  return data.items ?? [];
+}
+
 /** List all input ids in a worker group (used for tag/prefix-based cleanup). */
 export async function listInputIds(groupId: string): Promise<string[]> {
   return listIds(`${groupBase(groupId)}/system/inputs`);
+}
+
+/** Full input configs (type, port, …) at the GROUP level (not inside a pack). */
+export async function listGroupInputConfigs(
+  groupId: string,
+): Promise<Array<Record<string, unknown>>> {
+  return listItems(`${groupBase(groupId)}/system/inputs`);
+}
+
+/** List all pack ids installed in a worker group. */
+export async function listPackIds(groupId: string): Promise<string[]> {
+  return listIds(`${groupBase(groupId)}/packs`);
+}
+
+/** Full input configs (type, port, …) scoped inside one pack in a group. */
+export async function listPackInputConfigs(
+  groupId: string,
+  packId: string,
+): Promise<Array<Record<string, unknown>>> {
+  return listItems(`${groupBase(groupId)}/p/${encodeURIComponent(packId)}/system/inputs`);
 }
 
 /** List all output ids in a worker group. */
@@ -865,6 +891,35 @@ export async function tagFederatedSearchDataset(
 }
 
 /**
+ * Best-effort: bind a breaker ruleset onto an already-created dataset so
+ * events are classified/parsed natively (a real `datatype`) instead of
+ * relying on search-time `extract()` alone — e.g. Palo Alto traffic resolves
+ * to `pan_traffic` (source_ip, action, bytes, …) via the "Palo Alto
+ * Datatypes" ruleset. PATCHed AFTER creation, not included in the create
+ * call: the Lake dataset create API rejects `breakerRulesets` as an
+ * additional property (see the NOTE in `deploymentPlanner.ts`), and we don't
+ * know whether the Lakehouse dataset API is any more permissive. Any failure
+ * is swallowed — the dataset is still fully searchable via search-time
+ * parsing, so this must never fail a deploy.
+ */
+export async function applyDatasetBreakerRuleset(
+  id: string,
+  breakerRuleset: string,
+): Promise<void> {
+  for (const base of searchBases('datasets')) {
+    try {
+      await request('PATCH', `${base}/${encodeURIComponent(id)}`, {
+        id,
+        breakerRulesets: [breakerRuleset],
+      });
+      return;
+    } catch {
+      /* try next base */
+    }
+  }
+}
+
+/**
  * Create/update a Local Search ingest Source so the Lakehouse engine listens on
  * our chosen port. The matching `cribl_search_engine` destination sends here.
  * Idempotent via upsertMulti.
@@ -1006,6 +1061,127 @@ export function resolveSearchIngestHost(): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Resolve the Cribl.Cloud ingest hostname for an arbitrary worker group's
+ * custom HTTP/OTel-type source, e.g. `default.main.<org>.cribl.cloud` for
+ * group `default` (confirmed convention — Cribl docs' Raw HTTP/S, HTTP Bulk,
+ * and Data Firehose source pages all show `<groupId>.<workspace>.<org>.cribl.cloud`).
+ * This is the GENERAL form; `resolveSearchIngestHost` above is a special case
+ * for Cribl Search's own product-level alias (`search.`, not the literal
+ * `default_search` group id) and is unrelated to this one.
+ */
+export function resolveGroupIngestHost(groupId: string): string | undefined {
+  try {
+    const apiHost = new URL(apiBase()).hostname; // <workspace>-<org>.cribl.cloud
+    if (!apiHost) return undefined;
+    return `${groupId}.${apiHost.replace('-', '.')}`;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Pack ids the real "AI Observability" app installs once its Setup Wizard
+ * has run — confirmed live against an actual installed org (`GET
+ * /m/:gid/packs` listed `ai-o11y` and `ai-o11y-ingestion`), not guessed from
+ * the package's README/policies.yml prose (an earlier version of this
+ * detection keyed off pipeline NAMES mentioned in that prose, which turned
+ * out not to exist as real objects at all — this is the corrected version).
+ * Finding either pack in a group is the strongest available indirect signal
+ * that group hosts the app's ingestion setup; it is NOT a substitute for
+ * checking `/apps` (which we can't call — cross-app-blocked).
+ */
+const AI_OBSERVABILITY_SIGNAL_PACK_IDS = ['ai-o11y-ingestion', 'ai-o11y'];
+
+/**
+ * True for the app's OTLP/HTTP listener specifically (not its gRPC sibling,
+ * nor the separate raw-HTTP/relay gates the README also mentions for other
+ * vendor sources) — confirmed live: `type: 'open_telemetry'`,
+ * `protocol: 'http'`, found at `ai-o11y-otelHttp` on port 20006 inside the
+ * `ai-o11y-ingestion` pack.
+ *
+ * Also confirmed live: the base `ai-o11y` pack ships an input with the exact
+ * same id/type/protocol (on a different port) that is NOT actually wired up
+ * — `sendToRoutes: false`, `pipeline: null`. Without excluding it, a org with
+ * both packs installed (the normal case — `ai-o11y-ingestion` depends on
+ * `ai-o11y`) always finds two candidates and detection falls back to "not
+ * found" even when the real listener is right there. `sendToRoutes` is the
+ * live/inert distinguisher.
+ */
+function isOtlpHttpListener(input: Record<string, unknown>): boolean {
+  return (
+    String(input.type ?? '') === 'open_telemetry' &&
+    String(input.protocol ?? '') === 'http' &&
+    input.sendToRoutes === true
+  );
+}
+
+/**
+ * Best-effort detection of the real "AI Observability" app's OTLP/HTTP
+ * ingest host:port, for autofilling the use case's config field. We cannot
+ * ask the platform directly whether the app is installed (`/apps` is
+ * cross-app-blocked from inside any Cribl App, including this one) — so
+ * instead: for every worker group, list its installed packs (one GET); if
+ * either known AI Observability pack id is present, scan that SAME pack's
+ * inputs (and the group's own bare inputs, belt-and-suspenders) for the
+ * OTLP/HTTP listener. Returns a single `host:port` only when exactly one
+ * such listener is found across the whole org; returns `undefined` on no
+ * match OR on more than one candidate (ambiguous is treated the same as
+ * absent — we never guess which one is right).
+ */
+export async function detectAiObservabilityOtlpHost(): Promise<string | undefined> {
+  let groups: WorkerGroupRef[];
+  try {
+    groups = await listWorkerGroups();
+  } catch {
+    return undefined;
+  }
+
+  const perGroupResults = await Promise.all(
+    groups.map(async (g): Promise<string[]> => {
+      const host = resolveGroupIngestHost(g.id);
+      if (!host) return [];
+
+      let packIds: string[];
+      try {
+        packIds = await listPackIds(g.id);
+      } catch {
+        return []; // Can't list this group's packs — not a candidate.
+      }
+      const signalPackIds = packIds.filter((id) => AI_OBSERVABILITY_SIGNAL_PACK_IDS.includes(id));
+      if (signalPackIds.length === 0) return [];
+
+      const found: string[] = [];
+
+      try {
+        for (const input of await listGroupInputConfigs(g.id)) {
+          if (isOtlpHttpListener(input)) found.push(`${host}:${Number(input.port)}`);
+        }
+      } catch {
+        // Ignore — the listener is expected to be pack-scoped, not bare.
+      }
+
+      const perPack = await Promise.all(
+        signalPackIds.map(async (packId): Promise<string[]> => {
+          try {
+            return (await listPackInputConfigs(g.id, packId))
+              .filter(isOtlpHttpListener)
+              .map((input) => `${host}:${Number(input.port)}`);
+          } catch {
+            return []; // One unreadable pack shouldn't block checking the rest.
+          }
+        }),
+      );
+      found.push(...perPack.flat());
+
+      return found;
+    }),
+  );
+
+  const candidates = new Set(perGroupResults.flat());
+  return candidates.size === 1 ? [...candidates][0] : undefined;
 }
 
 /**

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { OptionCard } from '../components/OptionCard';
+import { SourceIcon } from '../components/SourceIcon';
 import { Stepper, type Step } from '../components/Stepper';
 import {
-  DEFAULT_SEARCH_ENGINE_ID,
   destinationProfileById,
   packForDatagenSample,
   policyOverlayById,
@@ -18,9 +18,27 @@ import {
 import type { ProcessingProfile, SourceProfile, StreamInputKind, WizardStepKey } from '../domain/types';
 import { useLauncher } from '../state/LauncherContext';
 import { buildUploadedSourceProfile, UploadValidationError } from '../domain/samples/customUpload';
+import { detectAiObservabilityOtlpHost } from '../services/criblApi';
 
 const CUSTOM_SOURCE_PREFIX = 'src-custom-';
 const CUSTOM_PROCESSING_ID = 'proc-custom-generic';
+
+/**
+ * The AI Observability use case has no destination tiles to pick from — it
+ * sends directly to the real app's own OTLP listener. We can't ask the
+ * platform directly whether the app is installed (cross-app-blocked), but we
+ * can best-effort auto-detect its listener (see `detectAiObservabilityOtlpHost`
+ * in `criblApi.ts`) and autofill this field; it stays a plain text field so
+ * the SE can always override or paste it manually when detection comes up
+ * empty. That use case special-cases the "destination" step to collect this
+ * value instead of rendering destination tiles.
+ */
+const AI_OBSERVABILITY_USE_CASE_ID = 'uc-ai-observability';
+
+/** Loose `host:port` shape check — good enough to catch an empty/garbled paste. */
+function isValidHostPort(value: string | undefined): boolean {
+  return Boolean(value && /^[a-zA-Z0-9.-]+:\d{2,5}$/.test(value.trim()));
+}
 
 /** The pack-backed processing profile whose Pack matches a source's data. */
 function packProfileForSource(source: SourceProfile): ProcessingProfile | undefined {
@@ -38,13 +56,16 @@ const STEP_LABELS: Record<WizardStepKey, string> = {
   visual: 'Visual outcome',
 };
 
+// 'visual' is intentionally excluded here: its only options are a generic,
+// per-use-case description of the outcome (not something the SE meaningfully
+// chooses), so that step is never shown — the default from `useCase.defaults`
+// is used as-is. See `visualSummary` for the one-line recap shown instead.
 const STEP_ORDER: WizardStepKey[] = [
   'source',
   'presentation',
   'destination',
   'processing',
   'overlays',
-  'visual',
 ];
 
 function toggle<T extends string>(list: T[], id: T): T[] {
@@ -64,6 +85,12 @@ export function WizardPage() {
   const { selection, updateSelection, runPreflightChecks, regeneratePlan, searchEngines } =
     useLauncher();
 
+  // AI Observability's OTLP-host auto-detect (destination-step section only).
+  // 'idle' until the use case is active; then 'checking' → 'found' | 'not-found'.
+  const [otlpDetectState, setOtlpDetectState] = useState<'idle' | 'checking' | 'found' | 'not-found'>(
+    'idle',
+  );
+
   // "Upload your own sample" inline form state (source section only).
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadName, setUploadName] = useState('');
@@ -78,23 +105,56 @@ export function WizardPage() {
   const sectionRefs = useRef<Partial<Record<WizardStepKey, HTMLElement | null>>>({});
   const [activeSectionKey, setActiveSectionKey] = useState<WizardStepKey | undefined>();
 
-  // When the AI-telemetry engine selector applies, make sure the selected engine
-  // actually exists on this stack. If the current choice isn't among the
-  // discovered engines, snap to the first available one (portability).
-  useEffect(() => {
-    if (!selection) return;
-    const src = sourceProfileById.get(selection.sourceProfileId);
-    if (src?.family !== 'ai-telemetry' || !searchEngines.length) return;
-    if (!searchEngines.some((e) => e.id === selection.engineId)) {
-      updateSelection({ engineId: searchEngines[0].id });
-    }
-  }, [selection, searchEngines, updateSelection]);
-
   const useCase = selection ? useCaseTemplateById.get(selection.useCaseId) : undefined;
   const runMode = selection ? runModeById.get(selection.runMode) : undefined;
   const selectedSource = selection
     ? selection.customSource ?? sourceProfileById.get(selection.sourceProfileId)
     : undefined;
+
+  // Kept current every render so the async detection below can check the
+  // LATEST selection (not a stale closure) before deciding whether to
+  // autofill — never clobber a value the SE already typed while it ran.
+  const selectionRef = useRef(selection);
+  useEffect(() => {
+    selectionRef.current = selection;
+  }, [selection]);
+
+  // Auto-detect the AI Observability app's OTLP listener once, the first time
+  // this use case is active. Best-effort (see detectAiObservabilityOtlpHost's
+  // own doc comment on how/why it can miss) — autofills only when exactly one
+  // candidate is found AND the field is still empty.
+  //
+  // `detectionStartedRef` (a ref, not state) gates the one-time start. It must
+  // NOT be `otlpDetectState` in the dependency array below: setting that state
+  // to 'checking' would itself re-run this effect, which runs the PREVIOUS
+  // invocation's cleanup (marking that invocation's `cancelled` true) before
+  // the in-flight request can ever report back — permanently stuck on
+  // "checking" regardless of what the scan finds. Learned this the hard way.
+  const detectionStartedRef = useRef(false);
+  useEffect(() => {
+    if (useCase?.id !== AI_OBSERVABILITY_USE_CASE_ID) {
+      detectionStartedRef.current = false;
+      return;
+    }
+    if (detectionStartedRef.current) return;
+    detectionStartedRef.current = true;
+    setOtlpDetectState('checking');
+    let cancelled = false;
+    void detectAiObservabilityOtlpHost()
+      .then((host) => {
+        if (cancelled) return;
+        if (host && !selectionRef.current?.otelIngestHost?.trim()) {
+          updateSelection({ otelIngestHost: host });
+        }
+        setOtlpDetectState(host ? 'found' : 'not-found');
+      })
+      .catch(() => {
+        if (!cancelled) setOtlpDetectState('not-found');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [useCase?.id, updateSelection]);
 
   const options = useMemo(() => {
     if (!useCase) return null;
@@ -133,9 +193,6 @@ export function WizardPage() {
       overlays: useCase.compatibleOverlayIds
         .map((id) => policyOverlayById.get(id))
         .filter((x): x is NonNullable<typeof x> => Boolean(x)),
-      visuals: useCase.compatibleVisualOutcomeIds
-        .map((id) => visualOutcomeProfileById.get(id))
-        .filter((x): x is NonNullable<typeof x> => Boolean(x)),
     };
   }, [useCase, selectedSource]);
 
@@ -152,15 +209,11 @@ export function WizardPage() {
         case 'presentation':
           return options.presentations.length;
         case 'destination':
-          return selectedSource?.family === 'ai-telemetry'
-            ? searchEngines.length
-            : options.destinations.length;
+          return options.destinations.length;
         case 'processing':
           return options.processing.length;
         case 'overlays':
           return options.overlays.length;
-        case 'visual':
-          return options.visuals.length;
         default:
           return 0;
       }
@@ -168,11 +221,18 @@ export function WizardPage() {
     return STEP_ORDER.filter((key) => {
       if (!runMode.exposedSteps.includes(key)) return false;
       if (key === 'overlays' && useCase.compatibleOverlayIds.length === 0) return false;
+      // AI Observability always needs its OTLP-host field, regardless of the
+      // (empty) destination tile count.
+      if (key === 'destination' && useCase.id === AI_OBSERVABILITY_USE_CASE_ID) return true;
+      // Lakehouse Engine Routing always needs its engine picker, for the same
+      // reason — `compatibleDestinationIds` is deliberately empty since the
+      // "destination" is the SE-picked engine, not a destination tile.
+      if (key === 'destination' && useCase.requiresSearchEngine) return true;
       // Nothing to decide (0 or 1 option) — keep the default and skip the section.
       if (optionCount(key) <= 1) return false;
       return true;
     }).map((key) => ({ key, label: STEP_LABELS[key] }));
-  }, [useCase, runMode, options, selectedSource, searchEngines]);
+  }, [useCase, runMode, options]);
 
   // Scroll-spy: observe each active section and highlight whichever one is
   // nearest the top of the viewport, for the jump-nav's active state.
@@ -272,19 +332,18 @@ export function WizardPage() {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // The AI-telemetry path accelerates its Lake dataset onto a Search engine, so
-  // it exposes an engine selector alongside the destination section.
-  const showEngineSelector = selectedSource?.family === 'ai-telemetry';
-  const selectedEngineId = selection.engineId ?? DEFAULT_SEARCH_ENGINE_ID;
-
   // Resolved selections, shown both in the "nothing to configure" summary and
   // in the sticky footer's live recap.
-  const destinationSummary = showEngineSelector
-    ? searchEngines.find((e) => e.id === selectedEngineId)?.displayName ?? selectedEngineId
-    : selection.destinationIds
-        .map((id) => destinationProfileById.get(id)?.displayName)
-        .filter(Boolean)
-        .join(', ') || '—';
+  const destinationSummary =
+    useCase.id === AI_OBSERVABILITY_USE_CASE_ID
+      ? selection.otelIngestHost?.trim() || 'OTLP host not set'
+      : useCase.requiresSearchEngine
+        ? searchEngines.find((e) => e.id === selection.engineId)?.displayName ||
+          'Lakehouse engine not set'
+        : selection.destinationIds
+            .map((id) => destinationProfileById.get(id)?.displayName)
+            .filter(Boolean)
+            .join(', ') || '—';
   const processingSummary =
     processingProfileById.get(selection.processingId)?.displayName ?? '—';
   const visualSummary =
@@ -304,6 +363,7 @@ export function WizardPage() {
               {options.sources.map((s) => (
                 <OptionCard
                   key={s.id}
+                  icon={<SourceIcon icon={s.icon} />}
                   title={s.displayName}
                   description={s.summary}
                   badge={s.protocol}
@@ -412,26 +472,71 @@ export function WizardPage() {
         );
 
       case 'destination':
-        return showEngineSelector ? (
-          <>
-            <p className="step-hint">
-              This demo lands in Cribl Search. Choose the Search engine to attach
-              the dataset to.
-            </p>
-            <div className="option-list">
-              {searchEngines.map((e) => (
-                <OptionCard
-                  key={e.id}
-                  title={e.displayName}
-                  description={e.summary}
-                  badge="Search engine"
-                  selected={selectedEngineId === e.id}
-                  onClick={() => updateSelection({ engineId: e.id })}
+        if (useCase.id === AI_OBSERVABILITY_USE_CASE_ID) {
+          const host = selection.otelIngestHost ?? '';
+          const showError = host.length > 0 && !isValidHostPort(host);
+          return (
+            <>
+              <p className="step-hint">
+                Install the official "AI Observability" app from the Cribl
+                marketplace catalog and run its Setup Wizard once (manual —
+                app-management endpoints are cross-app-blocked from any Cribl
+                App, including this one). Paste the OTLP/HTTP ingest host:port
+                it assigns you below.
+              </p>
+              <label className="field">
+                <span>OTLP/HTTP ingest host:port</span>
+                <input
+                  type="text"
+                  placeholder="e.g. otel-ingest.main.your-org.cribl.cloud:20003"
+                  value={host}
+                  onChange={(e) => updateSelection({ otelIngestHost: e.target.value })}
                 />
-              ))}
-            </div>
-          </>
-        ) : (
+              </label>
+              <p className="step-hint">
+                {otlpDetectState === 'checking'
+                  ? 'Checking this org for an already-installed AI Observability app…'
+                  : otlpDetectState === 'found'
+                    ? 'Detected automatically from an installed AI Observability app in this org.'
+                    : 'Not auto-detected — paste the host:port from the app\'s Setup Wizard.'}
+              </p>
+              {showError && (
+                <p className="step-hint" style={{ color: 'var(--danger)' }}>
+                  Expected a plain host:port, e.g. host.example.cribl.cloud:20003.
+                </p>
+              )}
+            </>
+          );
+        }
+        if (useCase.requiresSearchEngine) {
+          return (
+            <>
+              <p className="step-hint">
+                Pick an existing Cribl Search Lakehouse engine already
+                provisioned in this org. This use case routes natively into
+                the engine you choose — it does not provision one.
+              </p>
+              <div className="option-list">
+                {searchEngines.map((e) => (
+                  <OptionCard
+                    key={e.id}
+                    title={e.displayName}
+                    description={e.summary}
+                    selected={selection.engineId === e.id}
+                    onClick={() => updateSelection({ engineId: e.id })}
+                  />
+                ))}
+              </div>
+              {searchEngines.length === 0 && (
+                <p className="step-hint" style={{ color: 'var(--danger)' }}>
+                  No Lakehouse engines found in this org — create one first
+                  (Cribl Search → Engines), then come back to this step.
+                </p>
+              )}
+            </>
+          );
+        }
+        return (
           <>
             <p className="step-hint">
               Choose one or more destinations — the "right data to the right
@@ -441,6 +546,7 @@ export function WizardPage() {
               {options.destinations.map((d) => (
                 <OptionCard
                   key={d.id}
+                  icon={<SourceIcon icon={d.icon} />}
                   title={d.displayName}
                   description={d.summary}
                   badge={`${d.costTier}-cost`}
@@ -498,30 +604,6 @@ export function WizardPage() {
           </>
         );
 
-      case 'visual':
-        return (
-          <>
-            <p className="step-hint">Pick the proof point(s) you'll show at the end.</p>
-            <div className="option-list">
-              {options.visuals.map((v) => (
-                <OptionCard
-                  key={v.id}
-                  title={v.displayName}
-                  description={v.summary}
-                  badge={v.kind.replace(/-/g, ' ')}
-                  selected={selection.visualOutcomeIds.includes(v.id)}
-                  onClick={() =>
-                    updateSelection({
-                      visualOutcomeIds: toggle(selection.visualOutcomeIds, v.id),
-                    })
-                  }
-                  meta={v.assets.join(' • ')}
-                />
-              ))}
-            </div>
-          </>
-        );
-
       default:
         return null;
     }
@@ -554,7 +636,7 @@ export function WizardPage() {
                 <dd>{selectedSource?.displayName ?? '—'}</dd>
               </div>
               <div>
-                <dt>{showEngineSelector ? 'Search engine' : 'Destination'}</dt>
+                <dt>Destination</dt>
                 <dd>{destinationSummary}</dd>
               </div>
               <div>
@@ -592,7 +674,14 @@ export function WizardPage() {
           <span className="wizard-footer-summary">
             {selectedSource?.displayName ?? '—'} · {destinationSummary} · {processingSummary}
           </span>
-          <button className="btn btn-primary" onClick={reviewAndDeploy}>
+          <button
+            className="btn btn-primary"
+            disabled={
+              useCase.id === AI_OBSERVABILITY_USE_CASE_ID &&
+              !isValidHostPort(selection.otelIngestHost)
+            }
+            onClick={reviewAndDeploy}
+          >
             Review &amp; deploy
           </button>
         </div>

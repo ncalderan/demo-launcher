@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { runModes, sourceProfileById, useCaseTemplates } from '../domain/registry';
+import { CriblProductIcon } from '../components/CriblProductIcon';
+import { SourceIcon } from '../components/SourceIcon';
 import type { RunModeId } from '../domain/types';
 import { useLauncher } from '../state/LauncherContext';
 import { parseScenario } from '../services/scenarioIo';
@@ -10,7 +12,7 @@ import {
   type DemoFootprint,
 } from '../services/resetService';
 
-/** Landing launchpad: run-mode picker + opinionated Public Sector demo tiles. */
+/** Landing launchpad: run-mode picker + opinionated demo tiles. */
 export function LandingPage() {
   const navigate = useNavigate();
   const { startScenario, loadScenario, workerGroups } = useLauncher();
@@ -65,7 +67,7 @@ export function LandingPage() {
   return (
     <div className="page landing">
       <div className="page-intro">
-        <h1>Launch a Public Sector demo in minutes</h1>
+        <h1>Launch a Cribl demo in minutes</h1>
         <p>
           Pick a scenario, present a realistic source, route it through Cribl, and
           land on a proof point that tells the story. Opinionated defaults get you
@@ -142,13 +144,20 @@ export function LandingPage() {
 
       <div className="tile-grid">
         {useCaseTemplates.map((uc) => {
-          const sourceNames = uc.primarySourceProfileIds
-            .map((id) => sourceProfileById.get(id)?.displayName)
-            .filter(Boolean)
-            .join(', ');
+          const primarySource = sourceProfileById.get(uc.primarySourceProfileIds[0]);
           return (
             <article key={uc.id} className="tile">
               <div className="tile-body">
+                <div className="tile-head">
+                  <span className="tile-icon">
+                    {uc.tileIcon.kind === 'product' ? (
+                      <CriblProductIcon product={uc.tileIcon.product} size={44} />
+                    ) : (
+                      primarySource && <SourceIcon icon={primarySource.icon} size={44} />
+                    )}
+                  </span>
+                  <h2 className="tile-title">{uc.title}</h2>
+                </div>
                 <div className="tile-themes">
                   {uc.themes.map((t) => (
                     <span key={t} className="chip">
@@ -156,13 +165,8 @@ export function LandingPage() {
                     </span>
                   ))}
                 </div>
-                <h2 className="tile-title">{uc.title}</h2>
                 <p className="tile-value">{uc.valueStatement}</p>
                 <dl className="tile-facts">
-                  <div>
-                    <dt>Primary source</dt>
-                    <dd>{sourceNames}</dd>
-                  </div>
                   <div>
                     <dt>Destination pattern</dt>
                     <dd>{uc.destinationPattern}</dd>

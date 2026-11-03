@@ -1,24 +1,33 @@
 /**
  * Bundled Claude Code (OpenTelemetry) AI-telemetry sample set (SE Demo Launcher).
  *
- * These are real-shaped Claude Code Enterprise OTel *events* (logs), one JSON
- * object per line, modeled on the documented schema:
- *   - claude_code.api_request  → model, token breakdown, cost, duration (the
- *     workhorse events that carry cost/token/model/user analytics)
- *   - claude_code.user_prompt  → prompt text (captured only with
- *     OTEL_LOG_USER_PROMPTS=1); drives subject classification
- *   - claude_code.tool_decision / tool_result → tool activity + accept/reject
+ * Feeds the official Cribl "AI Observability" app via its own OTLP/HTTP
+ * listener — not a dataset we write into directly (the app's real dataset,
+ * `AI-o11y`, is populated by its own ingestion pack, which we don't own and
+ * can't replicate; see `buildOtelEnrichPipelineConf` in
+ * `deploymentPlanner.ts`). So the event shape here targets Claude Code's own
+ * real OTel schema, ground-truthed against LIVE Claude Code telemetry found
+ * in the app's actual dataset during this build (not guessed, not just the
+ * public docs): a "turn" is multiple correlated events sharing one
+ * `prompt_id` — confirmed live that `claude_code.user_prompt`,
+ * `claude_code.api_request`, `claude_code.tool_decision`/`tool_result`, and
+ * `claude_code.assistant_response` for the same turn all carry the SAME
+ * `attributes['prompt.id']`, which the real app's normalizer maps straight
+ * to `trace_id` — that's what lets Sessions & Traces group a whole
+ * conversation turn (prompt → tokens/cost → tool calls → response) into one
+ * trace instead of N disconnected spans. `tool_decision`/`tool_result` for
+ * the SAME tool call additionally share one `tool_use_id` (confirmed live:
+ * the real normalizer falls back to it for `span_id` when no dedicated
+ * `span.id` is present, which is exactly our case).
  *
  * We ship our own events (rather than a Cribl built-in datagen template, which
- * has no Claude Code sample) so the AI demo is deterministic: an internal
+ * has no Claude Code sample) so the demo is deterministic: an internal
  * generator acts only as a clock and a replay pipeline injects one of these
- * JSON records as `_raw` on each tick. A processing pipeline then parses the
- * OTel JSON, derives `total_tokens`, and classifies the prompt `subject`.
+ * JSON records as `_raw` on each tick. The enrichment pipeline then parses the
+ * JSON and builds the real OTLP/HTTP envelope the app's listener expects.
  *
- * Field names are the flattened, snake_case form the enrichment pipeline
- * normalizes OTel attributes into, so Search dashboards can query them directly.
- * Timestamps are intentionally omitted so each replayed event lands at ingest
- * time and shows up in the dashboards' recent-time windows.
+ * Timestamps are intentionally omitted here so each replayed event lands at
+ * ingest time and shows up in the app's recent-time windows.
  */
 
 interface Person {
@@ -62,6 +71,22 @@ const PROMPTS: Array<{ subject: string; prompt: string }> = [
   { subject: 'Incident Response', prompt: 'summarize the incident timeline from these error logs' },
 ];
 
+/** Canned assistant replies, generic enough to pair with any prompt above. */
+const RESPONSES = [
+  'Done — found the root cause and pushed a fix. Ran the test suite to confirm.',
+  'Finished the refactor and verified behavior is unchanged with the existing tests.',
+  'Added the tests and they all pass. Covered the edge cases we discussed.',
+  'Reviewed the diff — left a few comments, nothing blocking.',
+  'Applied the change and confirmed it in a dry run before rolling forward.',
+  'Updated the docs to match the current function signatures.',
+  'Built the pipeline and validated the output against a sample day of data.',
+  'Audited the handler — found one gap and patched it.',
+  'Rewrote the query with the right index; confirmed the plan no longer scans.',
+  'Wired up the integration and tested the webhook end-to-end.',
+  'Implemented the panel and the toggle persists across reloads.',
+  'Pulled the timeline together from the logs and summarized the sequence of events.',
+];
+
 const REPOS = [
   'bazookatron/order-api',
   'bazookatron/checkout-payments',
@@ -89,6 +114,13 @@ const rnd = mulberry32(20260713);
 const pick = <T>(arr: readonly T[]): T => arr[Math.floor(rnd() * arr.length)];
 const between = (min: number, max: number): number => Math.round(min + rnd() * (max - min));
 
+/** Deterministic pseudo-UUID (v4-shaped, not cryptographically random) from the seeded PRNG. */
+function pseudoUuid(): string {
+  const hex = () => Math.floor(rnd() * 16).toString(16);
+  const block = (n: number) => Array.from({ length: n }, hex).join('');
+  return `${block(8)}-${block(4)}-${block(4)}-${block(4)}-${block(12)}`;
+}
+
 /** Anthropic public per-1M-token pricing (approx) used to derive event cost. */
 function costUsd(model: string, inTok: number, outTok: number, cacheRead: number, cacheCreate: number): number {
   const rate =
@@ -107,27 +139,46 @@ function costUsd(model: string, inTok: number, outTok: number, cacheRead: number
 
 function buildEvents(): string[] {
   const events: string[] = [];
-  // Weight toward api_request events (they carry the cost/token analytics), with
-  // a healthy set of user_prompt events (subject story) and some tool activity.
-  const API_REQUESTS = 70;
-  const USER_PROMPTS = 34;
-  const TOOL_EVENTS = 24;
+  // Each "turn" is a correlated group of events sharing one `prompt_id` — a
+  // user_prompt, an api_request, usually a tool_decision/tool_result pair
+  // (sharing their own `tool_use_id`), and an assistant_response. This
+  // mirrors live Claude Code telemetry exactly (see module doc comment).
+  const TURNS = 60;
 
-  for (let i = 0; i < API_REQUESTS; i += 1) {
+  for (let i = 0; i < TURNS; i += 1) {
     const p = pick(PEOPLE);
     const model = pick(MODELS);
+    const pr = pick(PROMPTS);
+    const sessionId = `sess_${p.user_id}_${between(1, 6)}`;
+    const promptId = pseudoUuid();
+    const common = {
+      organization_id: ORG_ID,
+      user_id: p.user_id,
+      user_email: p.user_email,
+      team_id: p.team_id,
+      session_id: sessionId,
+      prompt_id: promptId,
+    };
+
+    events.push(
+      JSON.stringify({
+        event_name: 'claude_code.user_prompt',
+        ...common,
+        prompt: pr.prompt,
+        prompt_length: pr.prompt.length,
+      }),
+    );
+
     const input = between(1200, 14000);
     const output = between(400, 6000);
     const cacheRead = between(8000, 120000);
     const cacheCreate = between(0, 18000);
+    const apiRequestId = pseudoUuid();
     events.push(
       JSON.stringify({
         event_name: 'claude_code.api_request',
-        organization_id: ORG_ID,
-        user_id: p.user_id,
-        user_email: p.user_email,
-        team_id: p.team_id,
-        session_id: `sess_${p.user_id}_${between(1, 6)}`,
+        ...common,
+        request_id: apiRequestId,
         model,
         input_tokens: input,
         output_tokens: output,
@@ -138,56 +189,44 @@ function buildEvents(): string[] {
         repo: pick(REPOS),
       }),
     );
-  }
 
-  for (let i = 0; i < USER_PROMPTS; i += 1) {
-    const p = pick(PEOPLE);
-    const pr = pick(PROMPTS);
+    // Most turns touch at least one tool — decision then result, paired by
+    // tool_use_id (confirmed live: the real normalizer uses this as the
+    // span_id fallback, which is how a decision/result pair groups together).
+    if (rnd() > 0.25) {
+      const toolUseId = `toolu_${pseudoUuid().replace(/-/g, '')}`;
+      const tool = pick(TOOLS);
+      events.push(
+        JSON.stringify({
+          event_name: 'claude_code.tool_decision',
+          ...common,
+          tool_use_id: toolUseId,
+          tool_name: tool,
+          decision: rnd() > 0.2 ? 'accept' : 'reject',
+        }),
+      );
+      events.push(
+        JSON.stringify({
+          event_name: 'claude_code.tool_result',
+          ...common,
+          tool_use_id: toolUseId,
+          tool_name: tool,
+          success: rnd() > 0.15,
+          duration_ms: between(20, 4000),
+        }),
+      );
+    }
+
+    const resp = pick(RESPONSES);
     events.push(
       JSON.stringify({
-        event_name: 'claude_code.user_prompt',
-        organization_id: ORG_ID,
-        user_id: p.user_id,
-        user_email: p.user_email,
-        team_id: p.team_id,
-        session_id: `sess_${p.user_id}_${between(1, 6)}`,
-        model: pick(MODELS),
-        prompt: pr.prompt,
-        prompt_length: pr.prompt.length,
-        repo: pick(REPOS),
+        event_name: 'claude_code.assistant_response',
+        ...common,
+        request_id: pseudoUuid(),
+        model,
+        response: resp,
+        response_length: resp.length,
       }),
-    );
-  }
-
-  for (let i = 0; i < TOOL_EVENTS; i += 1) {
-    const p = pick(PEOPLE);
-    const isDecision = rnd() > 0.5;
-    const tool = pick(TOOLS);
-    events.push(
-      JSON.stringify(
-        isDecision
-          ? {
-              event_name: 'claude_code.tool_decision',
-              organization_id: ORG_ID,
-              user_id: p.user_id,
-              user_email: p.user_email,
-              team_id: p.team_id,
-              session_id: `sess_${p.user_id}_${between(1, 6)}`,
-              tool_name: tool,
-              decision: rnd() > 0.2 ? 'accept' : 'reject',
-            }
-          : {
-              event_name: 'claude_code.tool_result',
-              organization_id: ORG_ID,
-              user_id: p.user_id,
-              user_email: p.user_email,
-              team_id: p.team_id,
-              session_id: `sess_${p.user_id}_${between(1, 6)}`,
-              tool_name: tool,
-              success: rnd() > 0.15,
-              duration_ms: between(20, 4000),
-            },
-      ),
     );
   }
 

@@ -1,5 +1,6 @@
 import { Navigate, useNavigate } from 'react-router-dom';
 import { TalkTrackPanel } from '../components/TalkTrackPanel';
+import { SourceIcon } from '../components/SourceIcon';
 import { useLauncher } from '../state/LauncherContext';
 import { downloadScenario, toSavedScenario } from '../services/scenarioIo';
 
@@ -70,7 +71,12 @@ export function ReviewPage() {
 
         <section className="panel">
           <h2>Source presentation</h2>
-          <p className="panel-lead">{plan.sourcePresentation.displayName}</p>
+          <p className="panel-lead panel-lead-icon">
+            <span className="panel-lead-icon-badge">
+              <SourceIcon icon={plan.source.icon} size={20} />
+            </span>
+            {plan.sourcePresentation.displayName}
+          </p>
           <dl className="kv">
             <div>
               <dt>Appears as</dt>
@@ -114,7 +120,8 @@ export function ReviewPage() {
           <h3>Destinations</h3>
           <div className="chip-row">
             {plan.destinations.map((d) => (
-              <span key={d.id} className="chip">
+              <span key={d.id} className="chip chip-icon">
+                <SourceIcon icon={d.icon} size={14} />
                 {d.displayName} · {d.costTier}-cost
               </span>
             ))}
@@ -149,23 +156,6 @@ export function ReviewPage() {
               ))}
             </>
           )}
-        </section>
-
-        <section className="panel">
-          <h2>Visual outcomes</h2>
-          {plan.visualOutcomes.map((v) => (
-            <div key={v.id} className="outcome">
-              <p className="panel-lead">{v.displayName}</p>
-              <p className="muted">{v.summary}</p>
-              <div className="chip-row">
-                {v.assets.map((a) => (
-                  <span key={a} className="chip chip-soft">
-                    {a}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
         </section>
 
         <section className="panel panel-wide">

@@ -1,7 +1,7 @@
 import type { UseCaseTemplate } from '../types';
 
 /**
- * Curated Public Sector demo scenarios. v1 leads with concrete operator
+ * Curated SE Demo Launcher scenarios. v1 leads with concrete operator
  * outcomes (migration, cost-controlled tiering, shared telemetry). Sovereignty,
  * PII, and compliance are applied as overlays rather than standalone demos.
  *
@@ -11,6 +11,7 @@ import type { UseCaseTemplate } from '../types';
 export const useCaseTemplates: UseCaseTemplate[] = [
   {
     id: 'uc-dual-feed-siem-migration',
+    tileIcon: { kind: 'product', product: 'stream' },
     title: 'Dual-Feed SIEM Migration / Evaluation',
     valueStatement:
       'Feed the same telemetry to your current and target SIEM at once — evaluate or migrate without interrupting data flow.',
@@ -72,13 +73,14 @@ export const useCaseTemplates: UseCaseTemplate[] = [
   },
   {
     id: 'uc-cost-controlled-tiered-retention',
-    title: 'Cost-Controlled Tiered Retention',
+    tileIcon: { kind: 'product', product: 'lake' },
+    title: 'Tiered Retention',
     valueStatement:
       'Send high-value events to the SIEM, keep a searchable operational subset, and tier the rest to low-cost retention.',
     motion: 'siem-cost-containment',
     themes: ['cost-control', 'telemetry-tiering'],
     primarySourceProfileIds: ['src-pan-firewall-syslog'],
-    destinationPattern: 'SIEM + Search/operational subset + Lake retention',
+    destinationPattern: 'SIEM + Federated Search + Lake retention',
     expectedOutcome: 'Measurable volume reduction with the right data in each tier',
 
     compatibleSourceProfileIds: [
@@ -138,6 +140,7 @@ export const useCaseTemplates: UseCaseTemplate[] = [
   },
   {
     id: 'uc-windows-shared-visibility',
+    tileIcon: { kind: 'product', product: 'stream' },
     title: 'Windows Shared Visibility for IT & Security',
     valueStatement:
       'One Windows event stream serves both the SOC and IT operations — no duplicate tooling, no double storage.',
@@ -182,19 +185,23 @@ export const useCaseTemplates: UseCaseTemplate[] = [
     },
   },
   {
-    id: 'uc-ai-telemetry',
-    title: 'AI Coding-Agent Telemetry (Claude Code / OTel)',
+    id: 'uc-ai-observability',
+    tileIcon: { kind: 'primary-source' },
+    title: 'AI Observability (official Cribl app)',
     valueStatement:
-      'Ingest Claude Code agent telemetry over OpenTelemetry, land it in Cribl Lake, and light up cost, adoption, and usage dashboards in Cribl Search.',
+      'Send genuine Claude Code OpenTelemetry traffic straight to the official Cribl "AI Observability" app\'s own OTLP listener, and show its real Usage & Cost, Sessions & Traces, and Top Models dashboards — not a look-alike.',
     motion: 'shared-telemetry',
     themes: ['telemetry-tiering', 'operational-resilience', 'cost-control'],
     primarySourceProfileIds: ['src-ai-claude-otel'],
-    destinationPattern: 'OTel → Cribl Lake (retention) + accelerated Search engine',
-    expectedOutcome: 'AI usage, cost, and adoption dashboards over live agent telemetry',
+    destinationPattern: "Claude Code OTLP → the app's own OTLP listener",
+    expectedOutcome: 'The real AI Observability app, populated with live agent telemetry',
 
     compatibleSourceProfileIds: ['src-ai-claude-otel'],
     compatiblePresentationModeIds: ['otel-listener'],
-    compatibleDestinationIds: ['dst-cribl-lake', 'dst-cribl-search'],
+    // No destination tiles — this use case sends straight to an SE-provided
+    // OTLP host:port (see `otelIngestHost` on ScenarioSelection), collected in
+    // the wizard's "destination" step instead of a tile picker.
+    compatibleDestinationIds: [],
     compatibleProcessingIds: ['proc-custom-otel-enrich'],
     compatibleVisualOutcomeIds: ['viz-ai-telemetry'],
     compatibleOverlayIds: [],
@@ -202,27 +209,38 @@ export const useCaseTemplates: UseCaseTemplate[] = [
     defaults: {
       sourceProfileId: 'src-ai-claude-otel',
       presentationModeId: 'otel-listener',
-      destinationIds: ['dst-cribl-lake'],
+      destinationIds: [],
       processingId: 'proc-custom-otel-enrich',
       visualOutcomeIds: ['viz-ai-telemetry'],
     },
 
     talkTrack: {
       customerProblem:
-        'AI coding agents are rolling out fast, but leaders have no visibility into cost, adoption, or what teams are actually building with them.',
+        'AI coding agents are rolling out fast, but leaders have no visibility into cost, adoption, or what teams are actually building with them — and a hand-built dashboard looks like a science project, not a product.',
       criblAction:
-        'Cribl receives Claude Code OpenTelemetry events, normalizes and enriches them (token totals, cost, prompt subjects), lands them in Cribl Lake, and accelerates them onto a Search engine.',
+        'Cribl generates genuine Claude Code OTLP traffic and sends it straight to the official "AI Observability" app\'s own listener — its ingestion pack normalizes and lands the data automatically.',
       proofPoint:
-        'Show live token/cost trends, top users and models, and a breakdown of what the org is building — all from one OTel feed with no agent-side changes.',
+        'Open the actual AI Observability app and show live Usage & Cost, Sessions & Traces, and Top Models — the real product, not a demo-only recreation.',
       bullets: [
-        'One OTel feed → retention in Lake + fast dashboards in Search.',
-        'Cost and token visibility by user, team, and model.',
-        'See what the org is building via prompt-subject classification.',
+        'PREFLIGHT (one-time, manual): install "AI Observability" from the Cribl marketplace catalog and run its Setup Wizard — do this from Cribl UI → Apps → catalog before running this use case.',
+        "Copy the OTLP host:port the Setup Wizard assigns you into this use case's config step.",
+        'One Claude Code OTel feed → the official app\'s own Usage & Cost, Sessions & Traces, and Top Models panels.',
+        "Reset only tears down this run's pipeline and destinations — the app itself is never touched.",
       ],
+    },
+
+    postDeploy: {
+      title: 'Open the AI Observability app',
+      intro: [
+        'Allow ~30-60s after deploy for the first events to land, then open the app from the Cribl UI (Apps → AI Observability) and check Usage & Cost / Sessions & Traces / Top Models.',
+        "If nothing shows up, double-check the OTLP host:port you pasted and that the app's Setup Wizard has finished provisioning its listener.",
+      ],
+      blocks: [],
     },
   },
   {
     id: 'uc-ai-security-investigation',
+    tileIcon: { kind: 'product', product: 'search' },
     title: 'AI Investigator: Supply-Chain Compromise (Cribl Lake)',
     valueStatement:
       'One click backfills a realistic, historically-timestamped supply-chain attack across five correlated Lake datasets — then the Cribl Search AI Investigator reconstructs the whole incident from federated search.',
@@ -316,6 +334,67 @@ Show me how it looks historically across our archived security data - how it sta
       footnotes: [
         'Expected reconstruction: install (archive_vcs) → credential read by postinstall (archive_edr) → C2 DNS (archive_dns) → RO/MD egress byte-spike (archive_firewall) → Okta token misuse (archive_identity).',
         'Expected verdict: ~11 users touched sensitive files, 4 machines compromised, m.brown most affected.',
+      ],
+    },
+  },
+  {
+    id: 'uc-lakehouse-engine',
+    tileIcon: { kind: 'product', product: 'lakehouse' },
+    title: 'Lakehouse Engine Routing',
+    valueStatement:
+      'Point any data source straight at an existing Cribl Search Lakehouse engine and land on a dashboard built for that source — one hub for whatever you route into it.',
+    motion: 'shared-telemetry',
+    themes: ['operational-resilience', 'telemetry-tiering'],
+    primarySourceProfileIds: ['src-pan-firewall-syslog'],
+    destinationPattern: 'Source → native Cribl Search Lakehouse engine ingest',
+    expectedOutcome: 'A source-matched dashboard, live over data routed natively into the engine',
+
+    compatibleSourceProfileIds: [
+      'src-pan-firewall-syslog',
+      'src-windows-security-events',
+      'src-linux-infra-syslog',
+      'src-cisco-asa-firewall',
+      'src-checkpoint-firewall',
+      'src-crowdstrike-falcon',
+      'src-f5-bigip',
+      'src-zscaler-internet-access',
+    ],
+    compatiblePresentationModeIds: ['syslog-listener', 'windows-event-collector', 'tcp-listener'],
+    // No destination tiles — the "destination" IS the SE-picked Lakehouse
+    // engine, collected via the wizard's destination-step engine picker (see
+    // `requiresSearchEngine` below), not a tile list.
+    compatibleDestinationIds: [],
+    // No custom-pipeline alternatives to offer — every compatible source
+    // already has a real Cribl Pack match, but packs apply to a SIEM
+    // QuickConnect pipeline this use case doesn't create (events are parsed
+    // search-side instead, same as the generic fallback dashboard today).
+    compatibleProcessingIds: [],
+    compatibleVisualOutcomeIds: ['viz-lakehouse-dashboard'],
+    compatibleOverlayIds: [],
+
+    requiresSearchEngine: true,
+    requirementNote: 'Requires an existing Lakehouse engine',
+
+    defaults: {
+      sourceProfileId: 'src-pan-firewall-syslog',
+      presentationModeId: 'syslog-listener',
+      destinationIds: [],
+      processingId: 'proc-pack-firewall-optimization',
+      visualOutcomeIds: ['viz-lakehouse-dashboard'],
+    },
+
+    talkTrack: {
+      customerProblem:
+        'Teams stand up a new Lakehouse engine and then face the same question for every new source: how do we actually get THIS data into it, and will it look like anything useful once it lands?',
+      criblAction:
+        'Cribl discovers the Lakehouse engines already provisioned in the org, routes the chosen source straight into the one you pick with no intermediate federated Lake hop, and creates a real Search dashboard tailored to that source — networking panels for a firewall, event/code-monitoring panels for Windows, and so on.',
+      proofPoint:
+        'Pick any source, route it live into an existing engine, and open a populated, source-specific dashboard within a minute.',
+      bullets: [
+        'PREREQUISITE: this use case requires an existing Lakehouse engine in the org — it does not provision one. Create one first (Cribl Search → Engines) if none exists.',
+        'No intermediate Cribl Lake dataset — the source routes natively to the engine via its own ingest listener and dataset-ruleset.',
+        'Swap the source and the dashboard swaps with it — same engine, same flow, new story.',
+        'Reset removes only this run\'s dataset, route, and ingest source — the engine itself is never touched.',
       ],
     },
   },

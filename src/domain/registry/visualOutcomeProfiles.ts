@@ -63,15 +63,30 @@ export const visualOutcomeProfiles: VisualOutcomeProfile[] = [
     ],
   },
   {
+    id: 'viz-lakehouse-dashboard',
+    kind: 'dashboard',
+    displayName: 'Source-matched Lakehouse dashboard',
+    summary:
+      'A real Cribl Search dashboard, tailored to whichever source was routed into the Lakehouse engine — networking panels for a firewall, event/code-monitoring panels for Windows, and so on.',
+    themes: ['operational-resilience', 'telemetry-tiering'],
+    assets: [
+      'Volume/activity over time',
+      'Allow-deny or severity split',
+      'Top talkers / top affected hosts or users',
+      'Recent events, source-specific fields',
+    ],
+  },
+  {
     id: 'viz-ai-telemetry',
     kind: 'dashboard',
-    displayName: 'AI telemetry dashboards (Overview, Users, Subjects)',
-    summary: 'Cost, token, adoption, and usage dashboards over Claude Code OTel telemetry.',
+    displayName: "The real AI Observability app's own dashboards",
+    summary:
+      "Genuine Claude Code OTel telemetry, normalized by the app's own ingestion pack and shown in its real Usage & Cost / Sessions & Traces / Top Models panels — not a custom recreation.",
     themes: ['telemetry-tiering', 'cost-control', 'operational-resilience'],
     assets: [
-      'Overview: token & cost trends, model mix, top users',
-      'Users & Teams: per-user tokens, cost, sessions',
-      'Subjects: what the org is building',
+      'Usage & Cost: spend trends, token consumption, top users and models',
+      'Sessions & Traces: filterable session list, full prompt/response/tool-call payloads',
+      'Top Models: model mix and adoption across the org',
     ],
   },
 ];

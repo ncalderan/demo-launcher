@@ -3,7 +3,8 @@ import type { PolicyOverlay } from '../types';
 /**
  * Policy overlays layer onto a core template. They add pipeline/route behavior
  * (and sometimes a destination) rather than being standalone demos, so the
- * strongest operational stories can carry Public Sector policy narratives.
+ * strongest operational stories can carry sovereignty/PII/compliance
+ * narratives on top of them.
  */
 export const policyOverlays: PolicyOverlay[] = [
   {

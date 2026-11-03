@@ -115,6 +115,7 @@ export function buildUploadedSourceProfile(opts: CustomUploadOptions): SourcePro
   return {
     id: `src-custom-${token}`,
     family: 'security-lake',
+    icon: { kind: 'generic' },
     displayName: opts.displayName,
     summary: 'SE-supplied sample data, uploaded for this demo run.',
     protocol: opts.protocolLabel,

@@ -1,4 +1,32 @@
 import type { DestinationProfile } from '../types';
+import { siElasticsearch, siSplunk } from 'simple-icons';
+import azureSvgRaw from '../../assets/icons/azure.svg?raw';
+
+const GENERIC_ICON = { kind: 'generic' as const };
+const SPLUNK_ICON = {
+  kind: 'brand-svg' as const,
+  svg: siSplunk.svg,
+  hex: siSplunk.hex,
+  label: siSplunk.title,
+};
+const ELASTIC_ICON = {
+  kind: 'brand-svg' as const,
+  svg: siElasticsearch.svg,
+  hex: siElasticsearch.hex,
+  label: siElasticsearch.title,
+};
+/**
+ * Microsoft Sentinel has no dedicated mark in simple-icons or draw.io's icon
+ * search — Azure (the platform Sentinel runs on) is the closest real logo
+ * available, used as a stand-in rather than inventing a Sentinel-specific
+ * mark.
+ */
+const SENTINEL_ICON = {
+  kind: 'brand-svg' as const,
+  svg: azureSvgRaw,
+  hex: '2075B8',
+  label: 'Microsoft Azure (Sentinel runs on Azure; no dedicated Sentinel mark found)',
+};
 
 /**
  * Destination profiles. Each carries a `criblOutput` template — the actual Cribl
@@ -20,6 +48,7 @@ const DEFAULT_LAKE_DATASET = 'default_logs';
 export const destinationProfiles: DestinationProfile[] = [
   {
     id: 'dst-siem-current',
+    icon: SPLUNK_ICON,
     role: 'siem-analytics',
     displayName: 'Current SIEM (Splunk)',
     summary: 'Existing security analytics platform — the incumbent in a migration.',
@@ -32,6 +61,7 @@ export const destinationProfiles: DestinationProfile[] = [
   },
   {
     id: 'dst-siem-target',
+    icon: SENTINEL_ICON,
     role: 'siem-analytics',
     displayName: 'Target SIEM (Microsoft Sentinel)',
     summary: 'Evaluation/target analytics platform for a dual-feed migration.',
@@ -62,12 +92,16 @@ export const destinationProfiles: DestinationProfile[] = [
   },
   {
     id: 'dst-cribl-search',
+    icon: GENERIC_ICON,
     role: 'operations',
-    displayName: 'Cribl Search (operational subset)',
-    summary: 'Search data in place — a Cribl-native, always-available proof path.',
+    displayName: 'Federated Search (Cribl Lake)',
+    summary: 'Search data in place over Cribl Lake — no separate indexing step, always available.',
     technology: 'Cribl Search',
     costTier: 'low',
-    // Searchable subset lands in a Cribl Lake dataset (queried via Cribl Search).
+    // Honest naming: this is federated search over a Cribl Lake dataset, the
+    // same mechanism as dst-cribl-lake below — NOT a Lakehouse-accelerated
+    // search engine. Renamed from "Cribl Search (operational subset)", which
+    // implied otherwise.
     criblOutput: {
       type: 'cribl_lake',
       config: {
@@ -75,12 +109,13 @@ export const destinationProfiles: DestinationProfile[] = [
         stagePath: LAKE_STAGE_PATH,
         awsAuthenticationMethod: 'auto',
         compress: 'gzip',
-        description: 'Cribl Search (operational subset)',
+        description: 'Federated Search (Cribl Lake)',
       },
     },
   },
   {
     id: 'dst-cribl-lake',
+    icon: GENERIC_ICON,
     role: 'low-cost-store',
     displayName: 'Cribl Lake (retention)',
     summary: 'Low-cost, searchable retention for tiered telemetry.',
@@ -99,6 +134,10 @@ export const destinationProfiles: DestinationProfile[] = [
   },
   {
     id: 'dst-lake-s3',
+    // No clean, directly-downloadable AWS S3 logo found (draw.io only had an
+    // internal diagram-only stencil, no exportable SVG URL) — generic
+    // fallback rather than a mismatched/guessed mark.
+    icon: GENERIC_ICON,
     role: 'low-cost-store',
     displayName: 'Object store (Amazon S3)',
     summary: 'Inexpensive archive-style retention for lower-priority data.',
@@ -117,6 +156,7 @@ export const destinationProfiles: DestinationProfile[] = [
   },
   {
     id: 'dst-compliance-local',
+    icon: GENERIC_ICON,
     role: 'compliance-archive',
     displayName: 'Sovereign archive (in-region)',
     summary: 'In-region compliance copy that never leaves the boundary.',
@@ -137,6 +177,7 @@ export const destinationProfiles: DestinationProfile[] = [
   },
   {
     id: 'dst-ops-elastic',
+    icon: ELASTIC_ICON,
     role: 'operations',
     displayName: 'Operations analytics (Elasticsearch)',
     summary: 'Troubleshooting and IT operations destination.',

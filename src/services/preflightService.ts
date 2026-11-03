@@ -5,7 +5,7 @@ import type {
   ScenarioSelection,
   WorkerGroupRef,
 } from '../domain/types';
-import { destinationProfileById } from '../domain/registry';
+import { destinationProfileById, useCaseTemplateById } from '../domain/registry';
 import { listWorkerGroups } from './criblApi';
 
 /** Fallback group list when the API is unreachable (e.g. dev preview). */
@@ -114,11 +114,29 @@ export function runPreflight(
     detail: 'Pipelines, routes, and dashboard assets can be provisioned.',
   });
 
+  // Lakehouse Engine Routing hard-blocks deploy without an SE-picked engine —
+  // no auto-provisioning (see `requiresSearchEngine` on `UseCaseTemplate`).
+  // The wizard's destination-step engine picker sets `selection.engineId`
+  // from a live `listSearchEngines()` discovery; this check just reflects
+  // whether that happened.
+  const requiresEngine = useCaseTemplateById.get(selection.useCaseId)?.requiresSearchEngine ?? false;
+  const hasEngine = Boolean(selection.engineId);
+  if (requiresEngine) {
+    checks.push({
+      id: 'pf-lakehouse-engine',
+      label: 'Lakehouse engine selected',
+      status: hasEngine ? 'ok' : 'missing',
+      detail: hasEngine
+        ? `Routing into engine ${selection.engineId}.`
+        : 'No Lakehouse engine found/selected — this use case requires an existing engine and cannot auto-provision one.',
+    });
+  }
+
   const readiness = anyMissing ? 'fallback' : 'full';
   return {
     checkedAt: new Date().toISOString(),
     readiness,
-    canDeploy: capabilities.products.includes('stream'),
+    canDeploy: capabilities.products.includes('stream') && (!requiresEngine || hasEngine),
     checks,
     fallbackNote: anyMissing
       ? 'One or more preferred destinations are unavailable. The routing story is preserved inside Cribl using Search/Lake as the proof path.'

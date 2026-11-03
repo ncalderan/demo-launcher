@@ -11,10 +11,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <header className="app-header">
         <Link to="/" className="brand">
           <span className="brand-mark" aria-hidden />
-          <span className="brand-text">
-            SE Demo Launcher
-            <span className="brand-sub">Public Sector</span>
-          </span>
+          <span className="brand-text">SE Demo Launcher</span>
         </Link>
         {!isHome && (
           <Link to="/" className="header-link">

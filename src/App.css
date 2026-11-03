@@ -1,20 +1,32 @@
+/*
+ * Real Cribl brand palette (confirmed against the internal Frontify brand
+ * guideline + brand decks, not invented): Cribl Teal is the hero color —
+ * this app already used it as its one accent before this pass, which turned
+ * out to already be exactly right. Kumquat (Cribl Orange) is the brand's own
+ * stated secondary/energy accent, meant to pair with teal. The dark scale
+ * (Coal Lump → Obscurity → Timber → Gumbo) is the brand's own elevation
+ * progression, not an invented set of slate-blues.
+ */
 :root {
-  --bg: #0f1720;
-  --bg-elev: #16212e;
-  --panel: #1b2836;
-  --panel-2: #223142;
-  --border: #2c3d50;
-  --border-soft: #23303f;
-  --text: #e7eef5;
-  --text-muted: #9fb2c4;
-  --text-dim: #6f8298;
-  --accent: #00cccc;
-  --accent-ink: #032b2b;
+  --bg: #020e1b; /* Coal Lump */
+  --bg-elev: #002432; /* Obscurity */
+  --panel: #083b44; /* Timber */
+  --panel-2: #0a4e5b; /* Gumbo */
+  --border: #3b4e63; /* Shadow */
+  --border-soft: rgba(59, 78, 99, 0.45); /* Shadow, dimmed */
+  --text: #f5f5f5; /* Pearl */
+  --text-muted: #c7ccd2; /* Gray 2 */
+  --text-dim: #82a0ad;
+  --accent: #00cccc; /* Cribl Teal */
+  --accent-ink: #020e1b; /* Coal Lump */
   --accent-soft: rgba(0, 204, 204, 0.12);
-  --ok: #3ddc84;
-  --warn: #f5a623;
-  --danger: #ff6b6b;
-  --missing: #ff6b6b;
+  --accent-2: #ff8b00; /* Kumquat (Cribl Orange) */
+  --accent-2-ink: #020e1b; /* Coal Lump */
+  --accent-2-soft: rgba(255, 139, 0, 0.14);
+  --ok: #00ff55; /* Terminal */
+  --warn: #ffcf00; /* Sun */
+  --danger: #ff3342; /* Poppy */
+  --missing: #ff3342; /* Poppy */
   --radius: 10px;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
@@ -76,14 +88,6 @@ body {
   gap: 8px;
 }
 
-.brand-sub {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
 .app-version {
   margin-left: auto;
   padding-left: 14px;
@@ -113,7 +117,7 @@ body {
 
 /* ------------------------------- Page ----------------------------------- */
 .page-intro h1 {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
   margin-bottom: 8px;
 }
@@ -305,23 +309,24 @@ body {
   background: transparent;
 }
 .object-role {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: 6px;
   white-space: nowrap;
   min-width: 92px;
   text-align: center;
   flex-shrink: 0;
+  opacity: 0.85;
 }
 .role-source {
-  background: rgba(0, 204, 204, 0.16);
+  background: rgba(0, 204, 204, 0.11);
   color: var(--accent);
 }
 .role-destination {
-  background: rgba(61, 220, 132, 0.16);
+  background: rgba(61, 220, 132, 0.11);
   color: var(--ok);
 }
 .role-datagen,
@@ -331,14 +336,16 @@ body {
 }
 .role-pipeline,
 .role-pack {
-  background: rgba(140, 120, 240, 0.18);
-  color: #b3a5f5;
+  /* Violet — Cribl's own next-most-used accent, "primarily used to
+     emphasize text or in iconography." */
+  background: rgba(91, 84, 255, 0.13);
+  color: #5b54ff;
 }
 .role-search-dataset,
 .role-saved-search,
 .role-dashboard {
-  background: rgba(255, 176, 32, 0.16);
-  color: #ffb020;
+  background: var(--accent-2-soft);
+  color: var(--accent-2);
 }
 .object-item > div {
   display: flex;
@@ -346,8 +353,8 @@ body {
   gap: 2px;
 }
 .object-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -391,6 +398,22 @@ body {
   padding: 20px;
   flex: 1;
 }
+.tile-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.tile-icon {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  background: var(--panel-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .tile-themes {
   display: flex;
   gap: 6px;
@@ -400,7 +423,7 @@ body {
 .tile-title {
   font-size: 17px;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 .tile-value {
   color: var(--text-muted);
@@ -441,6 +464,9 @@ body {
   background: var(--accent-soft);
   color: var(--accent);
   text-transform: capitalize;
+}
+.chip-icon {
+  gap: 6px;
 }
 .chip-soft {
   background: var(--panel-2);
@@ -660,8 +686,8 @@ body {
 }
 .option-card {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 12px;
   text-align: left;
   padding: 16px;
   background: var(--panel);
@@ -681,6 +707,23 @@ body {
   border-color: var(--accent);
   background: var(--accent-soft);
   box-shadow: inset 0 0 0 1px var(--accent), 0 6px 16px rgba(0, 204, 204, 0.12);
+}
+.option-card-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.option-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
 }
 .option-card-head {
   display: flex;
@@ -783,6 +826,21 @@ body {
   font-weight: 600;
   margin-bottom: 10px;
 }
+.panel-lead-icon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.panel-lead-icon-badge {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .panel-head-row {
   display: flex;
   align-items: center;
@@ -802,9 +860,9 @@ body {
   line-height: 1.5;
 }
 .banner-warn {
-  background: rgba(245, 166, 35, 0.12);
-  border: 1px solid rgba(245, 166, 35, 0.4);
-  color: #f7c56b;
+  background: rgba(255, 207, 0, 0.12);
+  border: 1px solid rgba(255, 207, 0, 0.4);
+  color: var(--warn);
 }
 
 /* ---------------------------- Talk track -------------------------------- */
@@ -977,18 +1035,19 @@ body {
   border-radius: 8px;
 }
 .action-kind {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--accent);
   background: var(--accent-soft);
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: 6px;
   white-space: nowrap;
   flex-shrink: 0;
   min-width: 130px;
   text-align: center;
+  opacity: 0.85;
 }
 .action-item > div {
   display: flex;
@@ -996,8 +1055,8 @@ body {
   gap: 2px;
 }
 .action-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
 }
 .action-detail {
   font-size: 12px;
@@ -1194,4 +1253,52 @@ body {
 }
 .guide-footnotes li {
   margin-bottom: 6px;
+}
+
+/* ---------------------------- Source icons ------------------------------- */
+/* Real vendor logos render at their own brand color (set inline via `color`
+   on the wrapper, consumed by the logo's own `fill="currentColor"` paths) —
+   normal practice for a third-party integration mark. The generic fallback
+   uses the app's own teal accent instead of a guessed brand color. */
+.source-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.source-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.source-icon-brand svg {
+  fill: currentColor;
+}
+.source-icon-brand-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+/* A few brand marks (e.g. Splunk's near-black) are unreadable on our dark
+   badges on their own — give just those a small light backdrop of their own
+   so the logo stays legible without forcing every icon badge to go light. */
+.source-icon-needs-backdrop {
+  background: #fff;
+  border-radius: 4px;
+  padding: 2px;
+  box-sizing: border-box;
+}
+.source-icon-generic {
+  color: var(--accent);
+}
+
+/* Landing tiles: which Cribl product a demo showcases — real Cribl product
+   icons (own teal circular lockup), not a hand-drawn concept glyph. */
+.cribl-product-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cribl-product-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
