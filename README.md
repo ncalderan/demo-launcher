@@ -242,22 +242,35 @@ See `AGENTS.md` for Cribl App Platform specifics (fetch proxy, KV store,
 
 ## Installing directly from GitHub
 
-Cribl's **Add App > Import from Git** doesn't read this repo's source tree —
-it needs a pre-built package (`static/index.html` + `package.json` +
-`default/proxies.yml`) committed at the root of a tagged commit, not the
-`main` branch (which deliberately keeps `dist`/`static` out of git). A GitHub
-Action (`.github/workflows/release.yml`) builds that package and publishes it
-to a dedicated `release` branch, tagged `v<version>`, whenever `package.json`
-changes on `main`.
+Cribl's **Add App > Import from Git** installs a GitHub **Release**'s
+attached `.tgz` asset — not raw files from the repo tree. A GitHub Action
+(`.github/workflows/release.yml`) triggers on any pushed tag matching `v*`,
+packages the app at that version with `npm run package`, and publishes a
+Release with the `.tgz` attached.
 
-To install the app in Cribl, use **Add App > Import from Git** and supply:
+To cut a release:
 
-- **Repository URL**: this repo's URL
-- **Tag**: `v<version>` (e.g. `v1.0.44`) — matching the version in
-  `package.json` at the top of this README's history; check the repo's tags
-  for the latest. The tag is required — pointing at `main` or `release`
-  without one will not find a valid package.
+```bash
+git tag v1.0.0       # must start with v; the published artifact is versioned without it
+git push origin v1.0.0
+gh run watch                    # optional: follow the build
+gh release view v1.0.0 --web    # see the published release
+```
 
-To cut a release manually instead of waiting on CI, run
-`npm run release:git-pack`, review what it prepared, then push as it prints
-(`git push origin release && git push origin v<version> --force`).
+You don't need to bump the version in `package.json` first — the workflow
+stamps it from the tag name at build time.
+
+To install the app in Cribl:
+
+1. Log in to Cribl and click **Apps > View All**.
+2. Click **Add App > Import from Git**.
+3. Paste this repo's URL and `latest` for the release tag (or a specific
+   `v<version>` tag).
+4. Click **Import**.
+
+If you need to retag, delete the bad tag locally and on the remote first:
+
+```bash
+git tag -d v1.0.0
+git push origin :refs/tags/v1.0.0
+```

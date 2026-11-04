@@ -1,16 +1,16 @@
-name: Prepare Install-from-Git release
+name: Release
 
-# Cribl's "Install from Git" reads a pre-built package (static/index.html +
-# package.json + default/proxies.yml) from a tagged commit, not this repo's
-# source tree directly. This workflow runs scripts/prepare-git-pack.mjs
-# whenever package.json changes on main, and pushes the resulting `release`
-# branch + `v<version>` tag so Install from Git has something to find.
+# Cribl's "Import from Git" installs a GitHub Release's attached .tgz asset,
+# not raw files from the repo tree — confirmed against Cribl's own internal
+# "App Publishing to Github" guide. This workflow triggers on any pushed tag
+# matching v*, packages the app at that version (npm run package already
+# builds the exact static/index.html + package.json + default/proxies.yml
+# layout Import from Git expects, just zipped into a .tgz), and publishes it
+# as a GitHub Release with the .tgz attached.
 on:
   push:
-    branches: [main]
-    paths:
-      - package.json
-  workflow_dispatch: {}
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -20,26 +20,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Fetch existing release branch (if any)
-        run: git fetch origin release:release || true
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - run: npm ci
+      - run: npm run lint
 
-      - name: Configure git identity for the release commit
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Package at the tag's version (leading v stripped)
+        run: npm run package -- --version "${GITHUB_REF_NAME#v}"
 
-      - run: node scripts/prepare-git-pack.mjs
-
-      - name: Push release branch and tag
-        run: |
-          git push origin release
-          git push origin --tags --force
+      - name: Create GitHub Release with the .tgz attached
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/*.tgz
+          fail_on_unmatched_files: true
+          generate_release_notes: true
