@@ -1,8 +1,10 @@
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { TalkTrackPanel } from '../components/TalkTrackPanel';
 import { SourceIcon } from '../components/SourceIcon';
 import { useLauncher } from '../state/LauncherContext';
 import { downloadScenario, toSavedScenario } from '../services/scenarioIo';
+import { peekDirectAccessHost, resolveLakeId } from '../services/criblApi';
 
 /**
  * Deploy summary. Renders the visible source presentation, route, destinations,
@@ -13,6 +15,39 @@ export function ReviewPage() {
   const navigate = useNavigate();
   const { plan, preflight, selection } = useLauncher();
 
+  const directAccessOp = plan?.actions.find((a) => a.op?.type === 'ensure-direct-access')?.op as
+    | { type: 'ensure-direct-access'; lakeId: string; sourceId: string }
+    | undefined;
+
+  // Surface the real Direct Access host as soon as it's knowable — a direct,
+  // unauthenticated-by-proxies.yml Cribl API read — instead of making the SE
+  // run a full deploy and parse it out of a later 403 error. Only known once
+  // the source has been provisioned at least once in this org/Lake.
+  const [daHost, setDaHost] = useState<string | undefined>(undefined);
+  const [daChecked, setDaChecked] = useState(false);
+  const [daChecking, setDaChecking] = useState(false);
+
+  const checkDirectAccessHost = useCallback(async () => {
+    if (!directAccessOp) return;
+    setDaChecking(true);
+    try {
+      const lakeId = await resolveLakeId(directAccessOp.lakeId);
+      setDaHost(await peekDirectAccessHost(lakeId, directAccessOp.sourceId));
+    } catch {
+      setDaHost(undefined);
+    } finally {
+      setDaChecked(true);
+      setDaChecking(false);
+    }
+  }, [directAccessOp]);
+
+  useEffect(() => {
+    setDaHost(undefined);
+    setDaChecked(false);
+    if (directAccessOp) void checkDirectAccessHost();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [directAccessOp?.lakeId, directAccessOp?.sourceId]);
+
   if (!plan) return <Navigate to="/" replace />;
 
   const canDeploy = !preflight || preflight.canDeploy;
@@ -20,6 +55,18 @@ export function ReviewPage() {
   const onExport = () => {
     if (selection) downloadScenario(toSavedScenario(selection));
   };
+
+  // Fill in the real host, once known, so the SE copies the actual value
+  // instead of a templated placeholder.
+  const talkTrack =
+    directAccessOp && daHost
+      ? {
+          ...plan.useCase.talkTrack,
+          setupSteps: plan.useCase.talkTrack.setupSteps?.map((s) =>
+            s.highlight ? { ...s, highlight: `id: "${daHost}"` } : s,
+          ),
+        }
+      : plan.useCase.talkTrack;
 
   return (
     <div className="page review">
@@ -49,8 +96,33 @@ export function ReviewPage() {
         </div>
       )}
 
+      {directAccessOp && (
+        <div className={`banner ${daHost ? 'banner-ok' : 'banner-warn'}`}>
+          {daHost ? (
+            <>
+              <strong>Direct Access host for this org:</strong> <code>{daHost}</code> — add
+              this exact host:port to Settings → External API Access (see setup steps below).
+            </>
+          ) : daChecking ? (
+            'Checking this org for an existing Direct Access host…'
+          ) : daChecked ? (
+            <>
+              <strong>Direct Access host not yet known.</strong> It hasn't been provisioned in
+              this org/Lake yet — deploy once (it'll fail at the backfill step, that's expected),
+              then come back and{' '}
+              <button className="btn btn-ghost btn-sm" onClick={() => void checkDirectAccessHost()}>
+                check again
+              </button>
+              .
+            </>
+          ) : (
+            'Resolving Direct Access host…'
+          )}
+        </div>
+      )}
+
       <div className="review-grid">
-        <TalkTrackPanel talkTrack={plan.useCase.talkTrack} />
+        <TalkTrackPanel talkTrack={talkTrack} />
 
         {preflight && plan.runMode.showPreflightDetail && (
           <section className="panel">

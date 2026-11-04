@@ -894,6 +894,29 @@ export function buildDatasetIngestUrl(item: DirectAccessItem, datasetId: string)
 }
 
 /**
+ * Best-effort, single GET to surface the Direct Access host:port BEFORE the
+ * SE has to run (and watch fail) a full deploy to read it out of the
+ * "Domain ... is not declared in proxies.yml" error. This is a direct Cribl
+ * API call (not routed through this app's own proxies.yml), so it works even
+ * when External API Access hasn't been configured yet. Returns undefined if
+ * the source doesn't exist yet or hasn't been assigned a host (first-ever
+ * provision in this org/Lake) — callers should fall back to "deploy once".
+ */
+export async function peekDirectAccessHost(
+  lakeId: string,
+  sourceId: string,
+): Promise<string | undefined> {
+  const item = await getLakeDirectAccessSource(lakeId, sourceId);
+  const raw = item?.ingestUrls?.find((u) => u.type === 'ndjson')?.url ?? item?.ingestUrl;
+  if (!raw) return undefined;
+  try {
+    return new URL(raw).host;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Resolve the NDJSON ingest URL for a dataset, polling the Direct Access source
  * until its ingest URL is provisioned (create/PUT can return before the endpoint
  * is ready). On persistent failure, throws a diagnostic that distinguishes "still
