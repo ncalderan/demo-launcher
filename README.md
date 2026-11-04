@@ -14,7 +14,7 @@ Pick a scenario, present a realistic source, route the data through Cribl in a
 believable way, and land on a proof point that reinforces the value story.
 Everything is opinionated for speed, repeatability, and clean storytelling.
 
-The v1 use cases lead with concrete operator outcomes and map to Public Sector
+The use cases lead with concrete operator outcomes and map to Public Sector
 buying motions:
 
 1. **Dual-Feed SIEM Migration / Evaluation** — one source feeding current and
@@ -23,6 +23,14 @@ buying motions:
    operational subset searchable, the rest tiered to low-cost retention.
 3. **Windows Shared Visibility for IT & Security** — one Windows stream serving
    both the SOC and IT operations.
+4. **AI Observability** — real Claude Code OpenTelemetry traffic sent straight
+   into the official Cribl "AI Observability" app's own OTLP listener, landing
+   on that app's real dashboards.
+5. **AI Investigator: Supply-Chain Compromise (Cribl Lake)** — a historically
+   backdated supply-chain attack backfilled across five correlated Lake
+   datasets, then reconstructed end-to-end by Cribl Search's AI Investigator.
+6. **Lakehouse Engine Routing** — any source routed straight into an existing
+   Cribl Search Lakehouse engine, landing on a dashboard built for that source.
 
 Sovereignty/residency, PII, and compliance-archive stories are applied as
 **policy overlays** on top of these templates, not as standalone demos.
@@ -183,7 +191,7 @@ src/
   domain/
     types.ts                 # All interfaces (single source of truth)
     registry/
-      useCaseTemplates.ts    # The 3 curated Public Sector scenarios
+      useCaseTemplates.ts    # The curated Public Sector scenarios
       sourceProfiles.ts      # Visible source profiles (+ internal SampleFeed)
       presentationModes.ts   # Ingestion presentations
       destinationProfiles.ts # SIEM / Search / Lake / archive / ops targets
