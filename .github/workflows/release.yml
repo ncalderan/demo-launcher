@@ -2,15 +2,23 @@ name: Release
 
 # Cribl's "Import from Git" installs a GitHub Release's attached .tgz asset,
 # not raw files from the repo tree — confirmed against Cribl's own internal
-# "App Publishing to Github" guide. This workflow triggers on any pushed tag
-# matching v*, packages the app at that version (npm run package already
-# builds the exact static/index.html + package.json + default/proxies.yml
-# layout Import from Git expects, just zipped into a .tgz), and publishes it
-# as a GitHub Release with the .tgz attached.
+# "App Publishing to Github" guide. npm run package already builds the exact
+# static/index.html + package.json + default/proxies.yml layout Import from
+# Git expects, just zipped into a .tgz; this workflow publishes that .tgz as
+# a GitHub Release.
+#
+# Triggered by pushing a `v*` tag, or manually via workflow_dispatch (Actions
+# tab > Release > Run workflow, or `gh workflow run Release -f version=1.0.0`)
+# when a tag push doesn't trigger a run for whatever reason.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to package and release (X.Y.Z, no leading v)'
+        required: true
 
 permissions:
   contents: write
@@ -28,12 +36,24 @@ jobs:
       - run: npm ci
       - run: npm run lint
 
-      - name: Package at the tag's version (leading v stripped)
-        run: npm run package -- --version "${GITHUB_REF_NAME#v}"
+      - name: Resolve version + tag for this run
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package at that version
+        run: npm run package -- --version "${{ steps.ver.outputs.version }}"
 
       - name: Create GitHub Release with the .tgz attached
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.ver.outputs.tag }}
           files: build/*.tgz
           fail_on_unmatched_files: true
           generate_release_notes: true
