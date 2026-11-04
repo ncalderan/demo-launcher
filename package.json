@@ -1,6 +1,6 @@
 {
   "name": "demo-launcher",
-  "version": "1.0.49",
+  "version": "1.0.50",
   "displayName": "Demo Accelerator",
   "description": "a Cribl App for Solutions Engineers to launch, present, and tear down realistic demos and POVs in minutes.",
   "author": "Nick Calderan",
