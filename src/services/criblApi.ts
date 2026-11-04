@@ -236,6 +236,18 @@ export async function listDashboardIds(): Promise<string[]> {
   return listSearchIds('dashboards');
 }
 
+/**
+ * List all Lakehouse (search-engine) dataset ids in the Search group — used
+ * for prefix-based cleanup. Without this, teardown could only see the
+ * Lakehouse dataset belonging to whatever use case/source is currently in
+ * memory; switching the Lakehouse Engine Routing use case's source (e.g.
+ * CrowdStrike, then Palo Alto, then Checkpoint) creates a separate dataset
+ * per source — each needs its own sweep to be torn down.
+ */
+export async function listSearchDatasetIds(): Promise<string[]> {
+  return listSearchIds('datasets');
+}
+
 /* ------------------------------- Cribl Search ----------------------------- */
 
 /** Search objects live in the search group; Lake datasets under the default Lake. */

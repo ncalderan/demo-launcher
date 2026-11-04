@@ -24,6 +24,7 @@ import {
   listOutputIds,
   listPipelineIds,
   listSavedSearchIds,
+  listSearchDatasetIds,
   pruneLakeDirectAccessTokens,
   resolveLakeId,
   unlinkDatasetFromEngine,
@@ -168,6 +169,11 @@ async function tearDownGroup(opts: TearDownOptions): Promise<ResetResult> {
   };
   const searchSourceIds = new Set<string>();
   await sweepGlobal(() => listLakeDatasetIds(lakeId), lakeDatasetIds);
+  // Lakehouse Engine Routing creates a dataset per (use case, source) pair —
+  // switching the selected source creates a NEW dataset rather than reusing
+  // one, so each one needs its own sweep to be torn down (not just whichever
+  // dataset happens to be in the current in-memory plan).
+  await sweepGlobal(listSearchDatasetIds, searchDatasetIds);
   // The AI Investigator security demo uses fixed, authentic (non-`demo_`) Lake
   // dataset ids, so they won't match the prefix sweep. Resilient create can also
   // land on a `_N`-suffixed variant when the base id was pending deletion, so
