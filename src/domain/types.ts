@@ -386,6 +386,17 @@ export interface TalkTrack {
   proofPoint: string;
   /** Optional extra one-liners the SE can drop in. */
   bullets?: string[];
+  /** Optional numbered, screenshot-led walkthrough for a required manual step. */
+  setupSteps?: TalkTrackSetupStep[];
+}
+
+/** One step of a screenshot-led manual setup walkthrough shown in the talk track. */
+export interface TalkTrackSetupStep {
+  image: string;
+  alt: string;
+  caption: string;
+  /** Optional exact value to call out (e.g. the `id` field) as a highlighted code pill. */
+  highlight?: string;
 }
 
 /** A copyable, monospaced block shown in the post-deploy guide. */
@@ -585,10 +596,13 @@ export type DeploymentOp =
   | { type: 'create-search-source'; objectId: string; port: number; config: Record<string, unknown> }
   | { type: 'create-search-output'; objectId: string; port: number; config: Record<string, unknown> }
   | { type: 'route-dataset'; engineId: string; datasetId: string; sourceId: string }
-  // Best-effort: bind a breaker ruleset onto a dataset so events are
+  // Best-effort: bind a breaker ruleset onto a v1 dataset so events are
   // classified/parsed natively (a real datatype) rather than relying on
   // search-time `extract()` alone. See `applyDatasetBreakerRuleset`.
   | { type: 'apply-datatype'; objectId: string; breakerRuleset: string }
+  // Best-effort: switch a Lake dataset to search execution v2 and bind a
+  // path-filter datatype instead. See `applyDatasetV2PathFilterDatatype`.
+  | { type: 'apply-v2-path-filter-datatype'; objectId: string; dataTypeId: string }
   | { type: 'create-saved-search'; objectId: string; config: Record<string, unknown> }
   | { type: 'create-dashboard'; objectId: string; config: Record<string, unknown> }
   // ---- Historical-backfill (AI Investigator security demo) ----
@@ -596,7 +610,7 @@ export type DeploymentOp =
   // can inject it as the Authorization header (browser-set auth is stripped).
   | { type: 'put-ingest-token'; key: string; token: string }
   // Ensure the Lake Direct Access HTTP Source exists (with our token).
-  | { type: 'ensure-direct-access'; lakeId: string; sourceId: string; token: string }
+  | { type: 'ensure-direct-access'; lakeId: string; sourceId: string; token: string; datasetIds: string[] }
   // Generate backdated NDJSON for one feed and POST it to the dataset's ingest URL.
   | {
       type: 'backfill-dataset';

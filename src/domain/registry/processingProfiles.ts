@@ -74,6 +74,23 @@ export function breakerRulesetForDatagenSample(sample: string): string | undefin
   return breakerRulesetForSample[sample];
 }
 
+/**
+ * Search execution v2 datatype id for samples that datatype better via v2's
+ * path-filter model (glob-to-Datatype mapping on the Lake bucket path) than
+ * v1's direct `breakerRulesets` binding. Verified live: switching the
+ * CrowdStrike demo dataset to v2 with a `**\/*.json.gz` → `falcon_events`
+ * path filter (matching the gzip-JSON files our `cribl_lake` output writes)
+ * parsed real Falcon fields cleanly, where v1 did not.
+ */
+export const v2PathFilterDatatypeForSample: Record<string, string> = {
+  crowdstrike_falcon: 'falcon_events',
+};
+
+/** Resolve the v2 path-filter datatype id for a source's data, if any. */
+export function v2PathFilterDatatypeForDatagenSample(sample: string): string | undefined {
+  return v2PathFilterDatatypeForSample[sample];
+}
+
 export const processingProfiles: ProcessingProfile[] = [
   {
     id: 'proc-pack-firewall-optimization',

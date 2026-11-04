@@ -22,6 +22,7 @@ export {
   packForDatagenSample,
   datatypeForDatagenSample,
   breakerRulesetForDatagenSample,
+  v2PathFilterDatatypeForDatagenSample,
 } from './processingProfiles';
 export {
   visualOutcomeProfiles,

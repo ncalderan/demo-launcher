@@ -7,6 +7,7 @@ import {
   accelerateDataset,
   addDatasetRoute,
   applyDatasetBreakerRuleset,
+  applyDatasetV2PathFilterDatatype,
   commitAndDeploy,
   createOrReuseLakeDataset,
   ensureLakeDirectAccessSource,
@@ -48,7 +49,12 @@ const INGEST_BATCH_SIZE = 800;
  * Op types whose failure should NOT fail the whole deployment. The Lake dataset
  * is NOT soft: the Lake destination's `destPath` references it, so a dataset
  * failure must surface directly rather than as a confusing downstream
- * "not a valid dataset" error on the output.
+ * "not a valid dataset" error on the output. `put-ingest-token` is NOT soft
+ * either, for the same reason: every `backfill-dataset` action's ingest POST
+ * depends entirely on this KV write having actually landed (the platform
+ * proxy injects the Authorization header from it) — a silent failure here
+ * would surface as 5 confusing, seemingly-unrelated "401 Access denied"
+ * backfill failures instead of the one real cause.
  */
 const SOFT_OP_TYPES = new Set([
   'commit-deploy',
@@ -57,9 +63,9 @@ const SOFT_OP_TYPES = new Set([
   'accelerate-dataset',
   'create-search-source',
   'route-dataset',
-  'put-ingest-token',
   'tag-federated-dataset',
   'apply-datatype',
+  'apply-v2-path-filter-datatype',
 ]);
 
 export interface ExecuteOptions {
@@ -137,9 +143,15 @@ async function runAction(
           unknown
         > & { __searchPort?: unknown };
         void _p;
+        // Cribl.Cloud's managed ingress terminates TLS on these published
+        // ports regardless of the backend search-source's own `tls.disabled`
+        // setting (that setting is about the source's internal handling, not
+        // the public-facing connection) — confirmed live: plain `http://`
+        // produces a persistent "Parse Error: Expected HTTP/, RTSP/ or ICE/"
+        // on the client (TLS handshake bytes misread as an HTTP response).
         await upsertOutput(plan.groupId, action.op.objectId, {
           ...clean,
-          url: `http://${host}:${action.op.port}`,
+          url: `https://${host}:${action.op.port}`,
         });
         return { ...base, status: 'succeeded' };
       }
@@ -148,7 +160,12 @@ async function runAction(
         return { ...base, status: 'succeeded' };
       case 'ensure-direct-access': {
         const lakeId = await resolveLakeId(action.op.lakeId);
-        await ensureLakeDirectAccessSource(lakeId, action.op.sourceId, action.op.token);
+        await ensureLakeDirectAccessSource(
+          lakeId,
+          action.op.sourceId,
+          action.op.token,
+          action.op.datasetIds,
+        );
         return { ...base, status: 'succeeded' };
       }
       case 'backfill-dataset': {
@@ -180,6 +197,9 @@ async function runAction(
         return { ...base, status: 'succeeded' };
       case 'apply-datatype':
         await applyDatasetBreakerRuleset(action.op.objectId, action.op.breakerRuleset);
+        return { ...base, status: 'succeeded' };
+      case 'apply-v2-path-filter-datatype':
+        await applyDatasetV2PathFilterDatatype(action.op.objectId, action.op.dataTypeId);
         return { ...base, status: 'succeeded' };
       case 'create-saved-search':
         await upsertSavedSearch(action.op.objectId, action.op.config);
@@ -254,6 +274,15 @@ function remapDatasetId(plan: DeploymentPlan, oldId: string, newId: string): voi
     }
     if (op?.type === 'tag-federated-dataset' && op.objectId === oldId) {
       op.objectId = newId;
+    }
+    // The Direct Access source's dataset allowlist references datasets by a
+    // `datasetIds` ARRAY, not a single `objectId` — easy to miss, and missing
+    // it means this list keeps registering the stale (pending-deletion) id
+    // instead of the one that actually got created, so ingest 401s even
+    // though the dataset and the token are both otherwise correct.
+    if (op?.type === 'ensure-direct-access') {
+      const idx = op.datasetIds.indexOf(oldId);
+      if (idx !== -1) op.datasetIds[idx] = newId;
     }
     if (op && 'config' in op && op.config) {
       remapConfig(op.config as Record<string, unknown>, oldId, newId);

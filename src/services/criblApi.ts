@@ -333,10 +333,8 @@ export async function resolveLakeId(preferred = 'default'): Promise<string> {
  * either absent or healthy (reusable). Best-effort: if listing fails we return
  * `baseId` unchanged.
  */
-export async function resolveAvailableDatasetId(
-  lakeId: string,
-  baseId: string,
-): Promise<string> {
+/** Ids of Lake datasets currently mid-deletion (empty set if the list can't be read). */
+async function fetchPendingDeletionDatasetIds(lakeId: string): Promise<Set<string>> {
   const pendingDeletion = new Set<string>();
   try {
     const data = await request<{
@@ -346,8 +344,16 @@ export async function resolveAvailableDatasetId(
       if (d.id && d.deletionStartedAt) pendingDeletion.add(String(d.id));
     }
   } catch {
-    return baseId;
+    /* can't tell — caller treats as "nothing known to be pending" */
   }
+  return pendingDeletion;
+}
+
+export async function resolveAvailableDatasetId(
+  lakeId: string,
+  baseId: string,
+): Promise<string> {
+  const pendingDeletion = await fetchPendingDeletionDatasetIds(lakeId);
   if (!pendingDeletion.has(baseId)) return baseId;
   for (let i = 1; i < 50; i += 1) {
     const candidate = `${baseId}_${i}`;
@@ -614,9 +620,32 @@ export const LAKE_INGEST_TOKEN_KV_KEY = 'demoLakeIngestToken';
  */
 export const LAKE_DIRECT_ACCESS_ID = 'default';
 
-/** Store a value in this app's scoped KV store (used for the ingest token). */
+/**
+ * Store a value in this app's scoped KV store (used for the ingest token).
+ *
+ * Deliberately NOT using the generic `request()` helper: the KV store API is
+ * the one Cribl endpoint that wants the raw string as the body with
+ * `Content-Type: text/plain;charset=UTF-8` (confirmed in Cribl's own Builder
+ * Guide), not a JSON-encoded body. Going through `request()` would send
+ * `Content-Type: application/json` and `JSON.stringify(value)` — which
+ * double-quotes the value and sends it as JSON instead of raw text, and gets
+ * rejected with a 400. That 400 was silently swallowed for a long time
+ * because this op used to be marked "soft" in the executor (see
+ * `SOFT_OP_TYPES` in deploymentExecutor.ts) — every backfill POST downstream
+ * then failed with a generic, misleading 401 "Access denied" instead.
+ */
 export async function putKvValue(key: string, value: string): Promise<void> {
-  await request('PUT', `${apiBase()}/kvstore/${encodeURIComponent(key)}`, value);
+  const res = await fetch(`${apiBase()}/kvstore/${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+    body: value,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(
+      `KV store PUT "${key}" failed: ${res.status} ${res.statusText}: ${text.slice(0, 200)}`.trim(),
+    );
+  }
 }
 
 /** Delete a value from this app's scoped KV store (best-effort cleanup). */
@@ -634,10 +663,20 @@ interface DirectAccessIngestUrl {
 interface DirectAccessItem {
   id: string;
   authTokens?: Array<{ token: string; description?: string }>;
+  // The real API field behind the UI's "Direct Access Datasets" — the
+  // allowlist of Lake dataset ids this source may ingest into. Confirmed via
+  // Cribl's own internal Direct Access HTTP design doc (not in our bundled
+  // openapi.json, which has no such field on this resource at all). Omitting
+  // a dataset here makes ingest to it fail with a flat 401 "Access denied",
+  // indistinguishable from an auth problem unless you check this field.
+  datasetIds?: string[];
   ingestUrl?: string;
   ingestUrls?: DirectAccessIngestUrl[];
-  status?: unknown;
+  // Real enum confirmed via openapi.json's CriblLakeLifecycleItemStatus.
+  status?: 'provisioning' | 'ready' | 'failed' | 'terminated' | 'delayed' | 'blocked' | string;
 }
+
+const DIRECT_ACCESS_TERMINAL_FAILURE_STATUSES = new Set(['failed', 'terminated', 'blocked']);
 
 function directAccessBase(lakeId: string): string {
   return `${apiBase()}/products/lake/lakes/${encodeURIComponent(lakeId)}/direct-access`;
@@ -687,6 +726,7 @@ export async function ensureLakeDirectAccessSource(
   lakeId: string,
   id: string,
   token: string,
+  datasetIds: string[],
 ): Promise<DirectAccessItem> {
   const base = directAccessBase(lakeId);
   const authToken = { token, description: DA_TOKEN_MARKER };
@@ -695,36 +735,104 @@ export async function ensureLakeDirectAccessSource(
   let item = await getLakeDirectAccessSource(lakeId, id);
   if (item) {
     const hasOurToken = item.authTokens?.some((t) => t.token === token) ?? false;
-    if (!hasOurToken) {
-      // Register our token without disturbing tenant tokens; prune our own stale
-      // ones so the source doesn't accumulate one token per deploy.
+    const missingDatasetIds = datasetIds.filter((d) => !(item?.datasetIds ?? []).includes(d));
+    if (!hasOurToken || missingDatasetIds.length > 0) {
+      // Register our token and dataset ids without disturbing tenant-configured
+      // ones; prune our own stale tokens so the source doesn't accumulate one
+      // per deploy. Dataset ids are additive, EXCEPT for ones that are
+      // currently mid-deletion: Lake validates the WHOLE `datasetIds` array on
+      // every update, so a single stale, pending-deletion id left over from an
+      // earlier reset (e.g. an old `_2`-suffix collision rename) makes the
+      // ENTIRE update 400 — including our brand-new, valid ids. Confirmed
+      // live: "Dataset '...' is being deleted and cannot be used for Direct
+      // Access."
+      const pendingDeletion = await fetchPendingDeletionDatasetIds(lakeId);
       const tokens =
         item.authTokens?.filter(
           (t) => t.token !== token && t.description !== DA_TOKEN_MARKER,
         ) ?? [];
-      const updated = await request<{ items?: DirectAccessItem[] }>('PUT', base, {
+      const mergedDatasetIds = Array.from(
+        new Set(
+          [...(item.datasetIds ?? []), ...datasetIds].filter((d) => !pendingDeletion.has(d)),
+        ),
+      );
+      const body = {
         id: item.id ?? id,
         authTokens: [...tokens, authToken],
-      });
-      item = updated.items?.[0] ?? (await getLakeDirectAccessSource(lakeId, id));
+        datasetIds: mergedDatasetIds,
+      };
+      // The platform's fetch proxy times out at 30s (see AGENTS.md); a cold
+      // Lake backend can take longer than that to answer a write even when it
+      // lands fine. A timeout here is NOT proof the PUT failed — re-discover
+      // before giving up, and only retry the write itself if it genuinely
+      // didn't land.
+      try {
+        const updated = await request<{ items?: DirectAccessItem[] }>('PUT', base, body);
+        item = updated.items?.[0] ?? (await getLakeDirectAccessSource(lakeId, id));
+      } catch {
+        item = await getLakeDirectAccessSource(lakeId, id);
+        const landedAnyway =
+          (item?.authTokens?.some((t) => t.token === token) ?? false) &&
+          datasetIds.every((d) => (item?.datasetIds ?? []).includes(d));
+        if (!landedAnyway) {
+          const updated = await request<{ items?: DirectAccessItem[] }>('PUT', base, {
+            ...body,
+            id: item?.id ?? id,
+          });
+          item = updated.items?.[0] ?? (await getLakeDirectAccessSource(lakeId, id));
+        }
+      }
     }
   } else {
     // 2) Nothing to reuse — create one (this triggers first-time provisioning).
-    const created = await request<{ items?: DirectAccessItem[] }>('POST', base, {
-      id,
-      authTokens: [authToken],
-    });
-    item = created.items?.[0] ?? (await getLakeDirectAccessSource(lakeId, id));
+    // Same reasoning as above: a timeout on this POST doesn't mean the create
+    // failed — re-discover before retrying, since retrying a POST against a
+    // source that was actually created can 400/409 instead of helping.
+    try {
+      const created = await request<{ items?: DirectAccessItem[] }>('POST', base, {
+        id,
+        authTokens: [authToken],
+        datasetIds,
+      });
+      item = created.items?.[0] ?? (await getLakeDirectAccessSource(lakeId, id));
+    } catch {
+      item = await getLakeDirectAccessSource(lakeId, id);
+      if (!item) {
+        const created = await request<{ items?: DirectAccessItem[] }>('POST', base, {
+          id,
+          authTokens: [authToken],
+          datasetIds,
+        });
+        item = created.items?.[0] ?? (await getLakeDirectAccessSource(lakeId, id));
+      }
+    }
   }
 
-  // 3) Wait for the ingest URL ONLY if it isn't ready yet (freshly provisioned
-  //    sources need a few minutes; reused ones return immediately).
-  for (let i = 0; i < 45 && !item?.ingestUrls?.length && !item?.ingestUrl; i += 1) {
+  // 3) Wait for `status: "ready"` specifically — NOT just for an ingest URL to
+  // exist. Confirmed live: adding/updating authTokens or datasetIds (steps
+  // 1/2 above) flips `status` back to "provisioning" even on a source that
+  // already has `ingestUrls` populated from an earlier successful provision.
+  // Checking ingestUrls alone would return immediately on that stale value,
+  // before the NEW config (the dataset/token we just added) has actually
+  // redeployed — which is exactly how we got a 401 against a dataset that
+  // was, by every other signal, correctly registered.
+  for (
+    let i = 0;
+    i < 150 && item?.status !== 'ready' && !DIRECT_ACCESS_TERMINAL_FAILURE_STATUSES.has(item?.status ?? '');
+    i += 1
+  ) {
     await delay(4000);
     item = await getLakeDirectAccessSource(lakeId, id);
   }
   if (!item) {
     throw new Error(`Could not create or resolve Direct Access HTTP Source "${id}".`);
+  }
+  if (item.status !== 'ready') {
+    throw new Error(
+      `Direct Access HTTP Source "${id}" never reached "ready" (status: ${String(item.status)}) ` +
+        `after ~10 minutes. This is a Cribl-side provisioning problem, not an app config issue — ` +
+        `retrying likely won't help; check the source in the Cribl UI or contact Cribl Support.`,
+    );
   }
   return item;
 }
@@ -829,18 +937,34 @@ export async function resolveDatasetIngestUrl(
  */
 export async function postNdjsonToLake(url: string, lines: string[]): Promise<number> {
   if (lines.length === 0) return 0;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-ndjson' },
-    body: lines.join('\n'),
-  });
-  if (!res.ok) {
+  const body = lines.join('\n');
+  // Direct Access uses timestamp-based versioning and triggers an async
+  // redeploy whenever auth tokens (or dataset allowlists) change (confirmed
+  // in Cribl's own Lake release notes) — registering our token on the
+  // source (see `ensureLakeDirectAccessSource`) can return success before
+  // that redeploy has actually reached the Direct Access worker group, so
+  // the very next ingest POST can 401 on a token that IS correctly
+  // registered, just not live yet. Retry only on 401, with a short backoff;
+  // any other status fails immediately as a real error.
+  const maxAttempts = 6;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-ndjson' },
+      body,
+    });
+    if (res.ok) return lines.length;
     const text = await res.text().catch(() => '');
+    if (res.status === 401 && attempt < maxAttempts) {
+      await delay(5000);
+      continue;
+    }
     throw new Error(
       `Lake ingest failed: ${res.status} ${res.statusText}: ${text.slice(0, 200)}`.trim(),
     );
   }
-  return lines.length;
+  // Unreachable (the loop always returns or throws), but keeps TS happy.
+  return 0;
 }
 
 /* ---------------- Cribl Search — Lakehouse (search-engine) datasets ---------- */
@@ -891,16 +1015,21 @@ export async function tagFederatedSearchDataset(
 }
 
 /**
- * Best-effort: bind a breaker ruleset onto an already-created dataset so
- * events are classified/parsed natively (a real `datatype`) instead of
- * relying on search-time `extract()` alone — e.g. Palo Alto traffic resolves
- * to `pan_traffic` (source_ip, action, bytes, …) via the "Palo Alto
- * Datatypes" ruleset. PATCHed AFTER creation, not included in the create
- * call: the Lake dataset create API rejects `breakerRulesets` as an
- * additional property (see the NOTE in `deploymentPlanner.ts`), and we don't
- * know whether the Lakehouse dataset API is any more permissive. Any failure
- * is swallowed — the dataset is still fully searchable via search-time
- * parsing, so this must never fail a deploy.
+ * Best-effort: bind a datatype onto an already-created v1 dataset (Lake or
+ * Lakehouse — both use this same flat top-level `breakerRulesets` field) so
+ * events are classified/parsed natively instead of relying on search-time
+ * `extract()` alone — e.g. Palo Alto traffic resolves to `pan_traffic`
+ * (source_ip, action, bytes, …) via the "Palo Alto Datatypes" datatype.
+ * PATCHed AFTER creation, not included in the create call, since the Lake
+ * dataset create API rejects this as an additional property at create time
+ * (see the NOTE in `deploymentPlanner.ts`). Verified live against the
+ * workspace's own `default_logs`/`default_metrics`/`default_spans` and our
+ * Palo Alto demo dataset, all of which carry this as a flat field, not
+ * nested under `searchConfig` as the bundled (stale, for this) openapi.json
+ * suggests.
+ *
+ * Any failure is swallowed — the dataset is still fully searchable via
+ * search-time parsing, so this must never fail a deploy.
  */
 export async function applyDatasetBreakerRuleset(
   id: string,
@@ -911,6 +1040,41 @@ export async function applyDatasetBreakerRuleset(
       await request('PATCH', `${base}/${encodeURIComponent(id)}`, {
         id,
         breakerRulesets: [breakerRuleset],
+      });
+      return;
+    } catch {
+      /* try next base */
+    }
+  }
+}
+
+/**
+ * Best-effort: switch a Lake dataset to search execution v2 and bind a
+ * path-filter datatype — a glob-to-Datatype mapping on the Lake bucket path,
+ * rather than v1's direct `breakerRulesets` binding. Verified live: the
+ * CrowdStrike demo dataset parses cleanly on v2 with a `**\/*.json.gz` glob
+ * (matching the gzip-JSON files our `cribl_lake` output writes) mapped to
+ * the `falcon_events` datatype, where v1 did not. Both fields (`searchVersion`
+ * and `paths`) are flat/top-level on the live dataset object, confirmed via
+ * `cribl_getSearchContext`'s dataset listing — not nested under
+ * `searchConfig.pathFilters` as the bundled openapi.json's CREATE/PATCH
+ * schema describes (another place that schema is stale).
+ *
+ * Any failure is swallowed — the dataset is still fully searchable via
+ * search-time parsing, so this must never fail a deploy.
+ */
+export async function applyDatasetV2PathFilterDatatype(
+  id: string,
+  dataTypeId: string,
+  filterGlob = '**/*.json.gz',
+  dataPathFormat: 'ndjson' | 'parquet' = 'ndjson',
+): Promise<void> {
+  for (const base of searchBases('datasets')) {
+    try {
+      await request('PATCH', `${base}/${encodeURIComponent(id)}`, {
+        id,
+        searchVersion: 'v2',
+        paths: [{ filters: [{ filter: filterGlob, dataTypeId, dataPathFormat }] }],
       });
       return;
     } catch {

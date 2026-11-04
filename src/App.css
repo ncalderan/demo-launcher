@@ -889,6 +889,50 @@ body {
   font-size: 13px;
   line-height: 1.6;
 }
+.tt-setup-steps {
+  margin-bottom: 12px;
+}
+.tt-setup-steps ol {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tt-setup-steps li {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--panel-2);
+}
+.tt-setup-steps img {
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.tt-setup-steps p {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+  margin: 0;
+}
+.tt-setup-steps strong {
+  color: var(--accent);
+}
+.tt-highlight {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: rgba(255, 139, 0, 0.15);
+  border: 1px solid var(--accent-2, #ff8b00);
+  color: var(--accent-2, #ff8b00);
+  font-size: 12px;
+  word-break: break-all;
+}
 
 /* ------------------------------- KV ------------------------------------- */
 .kv {

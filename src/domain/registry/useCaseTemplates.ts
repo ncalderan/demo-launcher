@@ -1,4 +1,6 @@
 import type { UseCaseTemplate } from '../types';
+import externalApiAccessStep1 from '../../assets/screenshots/external-api-access-step1-settings-menu.png';
+import externalApiAccessStep2 from '../../assets/screenshots/external-api-access-step2-id-field.png';
 
 /**
  * Curated SE Demo Launcher scenarios. v1 leads with concrete operator
@@ -258,6 +260,9 @@ export const useCaseTemplates: UseCaseTemplate[] = [
     compatibleVisualOutcomeIds: ['viz-ai-investigation'],
     compatibleOverlayIds: [],
 
+    requirementNote:
+      'Requires a one-time manual admin step (External API Access) — deploy once to get the exact host, then see the first PREFLIGHT bullet below. First deploy can take up to ~10 minutes to provision.',
+
     defaults: {
       sourceProfileId: 'src-security-lake-backfill',
       presentationModeId: 'lake-backfill',
@@ -273,9 +278,25 @@ export const useCaseTemplates: UseCaseTemplate[] = [
         'Cribl Search Investigations (AI Investigator) runs federated search across the Cribl Lake datasets, extracts entities from a single EDR alert, and correlates endpoint → DNS → firewall → identity → source-control activity into one timeline — no data movement, no pre-built SIEM content.',
       proofPoint:
         'From one seed alert, the investigator reaches the verdict: ~11 users touched sensitive files, 4 machines are compromised, and M. Brown is worst affected — with the credential-theft → C2 egress → token-misuse chain laid out.',
+      setupSteps: [
+        {
+          image: externalApiAccessStep1,
+          alt: 'App header ⋯ menu open, showing Settings, Share, and Delete',
+          caption:
+            'In this app, click the ⋯ menu at the top right of the header and choose Settings.',
+        },
+        {
+          image: externalApiAccessStep2,
+          alt: 'External API Access tab showing the proxies.yml-style JSON entry with its id field',
+          caption:
+            'Open the External API Access tab. Edit (or add) the entry\'s id to the EXACT host:10080 from the failed-deploy error — not a wildcard. Keep the existing headers.inject.Authorization: kv.demoLakeIngestToken and allowlist: [content-type] as-is; only the id changes per org.',
+          highlight: 'id: "direct-access-<your-host>.<org>.cribl.cloud:10080"',
+        },
+      ],
       bullets: [
         'PREFLIGHT: Cribl Search Investigations is a Preview feature — enable it under Global Settings → AI Settings on a paid Search tenant before demoing.',
-        'PREFLIGHT: Direct Access ingest reaches a per-tenant host on port 10080 (see config/proxies.yml). If your tenant\'s host differs from the wildcard, add its exact host:10080 there.',
+        'PREFLIGHT, REQUIRED, MANUAL — Cribl can\'t grant this to itself: deploy once, let it fail with "Domain ... is not declared in proxies.yml", then follow the setup steps above. This is per-org and one-time, not something this app can do for you.',
+        'PREFLIGHT: first deploy provisions a new Direct Access HTTP source from scratch — this can take up to ~10 minutes. The deploy screen will show "Enable Cribl Lake Direct Access (HTTP)" in progress; that\'s expected, not stuck.',
         'Datasets created: archive_edr, archive_dns, archive_firewall, archive_identity, archive_vcs (authentic names so the AI treats them as real telemetry).',
         'WHY IT LANDS: the incident is backdated ~45 days — beyond a typical 30-day SIEM retention window. The data only exists in the Lake archive, so federated Search over 90 days is the differentiator. If it were a few days old, the customer would just use their SIEM.',
         'After deploy, allow ~1 minute for the backfilled events to become searchable, then confirm with: dataset="archive_edr" earliest=-90d | head 20',

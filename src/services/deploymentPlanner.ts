@@ -26,6 +26,7 @@ import {
   runModeById,
   sourceProfileById,
   useCaseTemplateById,
+  v2PathFilterDatatypeForDatagenSample,
   visualOutcomeProfileById,
 } from '../domain/registry';
 import {
@@ -550,20 +551,26 @@ function searchParseForSample(datagenSample: string): SearchParseSpec {
         groupBy: { field: 'action', label: 'action' },
       };
     case 'crowdstrike_falcon':
-      // Single-line Falcon detection/event JSON (see domain/samples/crowdstrike.ts).
-      // Regex-extract specific key values directly from the JSON text, same
-      // verified-safe approach as every other case here rather than a JSON
-      // search function.
+      // The v2 path-filter "falcon_events" datatype (see
+      // `v2PathFilterDatatypeForSample`) structurally parses our JSON
+      // natively — no search-time extract() needed, same as OTel below.
+      // It just reflects our sample's own nested shape (metadata.*,
+      // event.*), not a vendor-native schema; verified live that dotted
+      // paths work directly in queries and render as underscored columns
+      // (e.g. `event.SeverityName` → `event_SeverityName`). Many events
+      // aren't detections, so SeverityName/DetectName are null on most rows
+      // — see the `isnotnull()` filters in `buildDashboardElements`.
       return {
-        parse: [
-          '| extend event_type = extract("\\"eventType\\":\\"([^\\"]*)\\"", 1, _raw)',
-          '| extend detect_name = extract("\\"DetectName\\":\\"([^\\"]*)\\"", 1, _raw)',
-          '| extend severity_name = extract("\\"SeverityName\\":\\"([^\\"]*)\\"", 1, _raw)',
-          '| extend computer_name = extract("\\"ComputerName\\":\\"([^\\"]*)\\"", 1, _raw)',
-          '| extend user_name = extract("\\"UserName\\":\\"([^\\"]*)\\"", 1, _raw)',
-        ].join('\n'),
-        projectFields: ['_time', 'event_type', 'detect_name', 'severity_name', 'computer_name', 'user_name'],
-        groupBy: { field: 'severity_name', label: 'severity' },
+        parse: '',
+        projectFields: [
+          '_time',
+          'metadata.eventType',
+          'event.DetectName',
+          'event.SeverityName',
+          'event.ComputerName',
+          'event.UserName',
+        ],
+        groupBy: { field: 'event.SeverityName', label: 'severity' },
       };
     case 'f5_bigip':
       // `module[pid]: id: message` syslog (see domain/samples/f5Bigip.ts). ASM
@@ -774,24 +781,33 @@ function buildDashboardElements(
   }
 
   if (datagenSample === 'crowdstrike_falcon') {
+    // Fields verified live against the real `falcon_events` v2-datatyped
+    // dataset (not guessed): nested `metadata.*`/`event.*` paths, rendered
+    // by Cribl Search as underscored columns (e.g. `event.SeverityName` ->
+    // `event_SeverityName`). Only DetectionSummaryEvent rows carry
+    // SeverityName/DetectName — AuthActivityAuditEvent/ProcessRollupEvent
+    // and others leave them null, hence the `isnotnull()` filters.
     return [
       el('cs_events_over_time', 'chart.line', 'Events over time',
         '| summarize events = count() by bin(_time, 5m)\n| sort by _time asc',
         { x: 0, y: 0, w: 12, h: 5 }),
-      el('cs_severity_split', 'chart.pie', 'Severity split',
-        '| summarize count = count() by severity_name\n| sort by count desc',
+      el('cs_event_type_split', 'chart.pie', 'Events by type',
+        '| summarize count = count() by metadata.eventType\n| sort by count desc',
         { x: 0, y: 5, w: 4, h: 6 }),
+      el('cs_severity_split', 'chart.pie', 'Detection severity split',
+        '| where isnotnull(event.SeverityName)\n| summarize count = count() by event.SeverityName\n| sort by count desc',
+        { x: 4, y: 5, w: 4, h: 6 }),
       el('cs_top_detections', 'list.table', 'Top detections',
-        '| summarize count = count() by detect_name\n| sort by count desc\n| limit 10',
-        { x: 4, y: 5, w: 8, h: 6 }),
-      el('cs_top_computers', 'list.table', 'Top affected computers',
-        '| summarize count = count() by computer_name\n| sort by count desc\n| limit 10',
+        '| where isnotnull(event.DetectName)\n| summarize count = count() by event.DetectName\n| sort by count desc\n| limit 10',
+        { x: 8, y: 5, w: 4, h: 6 }),
+      el('cs_top_computers', 'list.table', 'Top computers',
+        '| summarize count = count() by event.ComputerName\n| sort by count desc\n| limit 10',
         { x: 0, y: 11, w: 6, h: 6 }),
-      el('cs_top_users', 'list.table', 'Top affected users',
-        '| summarize count = count() by user_name\n| sort by count desc\n| limit 10',
+      el('cs_top_users', 'list.table', 'Top users',
+        '| summarize count = count() by event.UserName\n| sort by count desc\n| limit 10',
         { x: 6, y: 11, w: 6, h: 6 }),
-      el('cs_recent', 'list.events', 'Recent detections',
-        '| project _time, event_type, detect_name, severity_name, computer_name, user_name\n| limit 100',
+      el('cs_recent', 'list.events', 'Recent events',
+        '| project _time, metadata.eventType, event.DetectName, event.SeverityName, event.ComputerName, event.UserName\n| limit 100',
         { x: 0, y: 17, w: 12, h: 8 }),
     ];
   }
@@ -1107,18 +1123,27 @@ function buildSecurityBackfillPlan(
     op: { type: 'put-ingest-token', key: LAKE_INGEST_TOKEN_KV_KEY, token: ingestToken },
   });
 
-  // 3) Ensure the Direct Access HTTP Source exists (with our token).
+  // 3) Ensure the Direct Access HTTP Source exists (with our token), AND that
+  // our 5 dataset ids are on its allowlist. The allowlist (API field
+  // `datasetIds`, shown in the UI as "Direct Access Datasets") is a separate,
+  // required gate from the auth token — a dataset missing from it fails
+  // ingest with a flat 401 "Access denied" indistinguishable from a bad
+  // token. Confirmed live: this source's list had gone stale with `_2`-suffixed
+  // ids from an earlier dataset-collision rename, never including our actual
+  // (non-suffixed) dataset ids at all.
+  const feedDatasetIds = SECURITY_FEEDS.map(feedDatasetId);
   actions.push({
     id: nextId('act'),
     kind: 'create-source',
     label: 'Enable Cribl Lake Direct Access (HTTP)',
-    detail: `Direct Access HTTP Source "${LAKE_DIRECT_ACCESS_ID}" on the ${LAKE_ID} Lake for NDJSON ingest.`,
+    detail: `Direct Access HTTP Source "${LAKE_DIRECT_ACCESS_ID}" on the ${LAKE_ID} Lake for NDJSON ingest, allowlisting ${feedDatasetIds.join(', ')}.`,
     implementation: 'live',
     op: {
       type: 'ensure-direct-access',
       lakeId: LAKE_ID,
       sourceId: LAKE_DIRECT_ACCESS_ID,
       token: ingestToken,
+      datasetIds: feedDatasetIds,
     },
   });
 
@@ -1495,6 +1520,14 @@ export function buildDeploymentPlan(
         customSourceExpression: '_otlpLogsEnvelope',
         customContentType: 'application/json',
         customDropWhenNull: true,
+        // Without this, the webhook's default batching joins multiple
+        // events into one POST body separated by newlines (NDJSON-style).
+        // The real OTLP/HTTP JSON endpoint only accepts exactly one JSON
+        // object per request and rejects anything after it — confirmed
+        // live: "Malformed JSON: Unexpected non-whitespace character after
+        // JSON at position ... (line 2 column 1)", i.e. the start of a
+        // second batched event. One event per request avoids this entirely.
+        maxPayloadEvents: 1,
         authType: 'none',
         streamtags,
         description: "SE Demo Launcher → real AI Observability app's OTLP/HTTP logs listener",
@@ -1502,6 +1535,12 @@ export function buildDeploymentPlan(
     });
     connections.push({ output: aiLogsDestId, pipeline: pipeId });
   } else {
+    // The Pack/pipeline is for the SIEM feed only — a real SIEM is the
+    // audience that needs its specific parsing/normalization. The Lake copy
+    // stays raw passthrough; parsing for Search happens search-side instead,
+    // either via `searchParseForSample`'s `extract()` clauses or, for
+    // samples with a verified v2 path-filter datatype (see
+    // `v2PathFilterDatatypeForSample`), via that native classification.
     let lakeOutputId: string | undefined;
     for (const dest of destinations) {
       const isLake = dest.criblOutput.type === 'cribl_lake';
@@ -1764,6 +1803,24 @@ export function buildDeploymentPlan(
         detail: `Binds the "${lakeBreakerRuleset}" breaker ruleset to ${datasetId} so events land pre-parsed, not just raw _raw.`,
         implementation: 'live',
         op: { type: 'apply-datatype', objectId: datasetId, breakerRuleset: lakeBreakerRuleset },
+      });
+    }
+
+    // Some samples datatype better via v2's path-filter model than v1's
+    // direct breakerRulesets binding (verified live for CrowdStrike — see
+    // `v2PathFilterDatatypeForSample`). Mutually exclusive with the
+    // breakerRuleset binding above in practice (no sample is in both maps
+    // today), but not enforced as such since there's no live evidence one
+    // way or the other for a sample that would need both.
+    const lakeV2Datatype = v2PathFilterDatatypeForDatagenSample(source.datagenSample);
+    if (lakeV2Datatype) {
+      actions.push({
+        id: nextId('act'),
+        kind: 'create-search-dataset',
+        label: `Switch to search v2 — ${lakeV2Datatype}`,
+        detail: `Switches ${datasetId} to search execution v2 with a path filter mapping its gzip-JSON files to the "${lakeV2Datatype}" datatype.`,
+        implementation: 'live',
+        op: { type: 'apply-v2-path-filter-datatype', objectId: datasetId, dataTypeId: lakeV2Datatype },
       });
     }
   }

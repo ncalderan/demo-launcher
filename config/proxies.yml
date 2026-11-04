@@ -6,18 +6,45 @@
 #
 # The "AI Investigator security demo" use case backfills historical events
 # straight into Cribl Lake via the Direct Access HTTP ingest endpoint, which
-# lives on a per-tenant host of the form:
-#     https://direct-access-<suffix>.<tenant>.cribl.cloud:10080/datasets/<id>
+# lives on a per-tenant, per-resource host of the form:
+#     https://direct-access-<suffix>.<workspace>.<org>.cribl.cloud:10080/datasets/<id>
 #
-# The exact subdomain is provisioned per workspace, so we declare the family
-# with a wildcard on the Direct Access ingest port (10080). The ingest token is
-# generated fresh per deploy, stored in this app's KV store under
-# `demoLakeIngestToken`, and injected here as the `Authorization` header — the
-# platform proxy strips any Authorization header the app sets itself, so it MUST
-# be injected server-side from KV.
+# IMPORTANT — this canNOT be declared here as a wildcard. Confirmed against
+# Cribl's own App Platform docs/engineering tracker: hostname wildcards are
+# NOT supported by the proxy middleware at all. A wildcard key like
+# "direct-access-*.cribl.cloud:10080" passes install-time schema validation
+# (so it looks fine), but at request time the proxy does an EXACT hostname
+# lookup — the wildcard entry silently never matches anything, and every
+# request 403s with "Domain ... is not declared in proxies.yml" even though
+# this file appears to cover it. An earlier version of this file had exactly
+# that broken wildcard.
 #
-# Preflight: if your tenant's Direct Access host does not match this pattern,
-# add its exact `host:10080` key below. The rest of the app is unaffected.
+# Since the exact subdomain is generated per org/workspace and can't be known
+# at package-build time, Cribl's documented answer for this case is: omit it
+# from proxies.yml, and have an admin authorize the exact hostname after
+# install via App Settings > External API Access. BEFORE running the AI
+# Investigator scenario:
+#   1. Deploy once, let it hit the "Domain ... is not declared in proxies.yml"
+#      403, and copy the exact host:port from that error (e.g.
+#      direct-access-huc7ru1.main.<org>.cribl.cloud:10080).
+#   2. Go to this app's Settings > External API Access and add an entry for
+#      that exact host:port, replicating the fields below exactly — the
+#      admin-side entry uses the SAME shape as a proxies.yml entry (per
+#      Cribl's Admin Guide), so the hostname alone is not enough; the header
+#      injection is what authenticates the ingest.
+#
+# IMPORTANT — the entry below MUST stay live (not commented out), even though
+# its own domain is a non-matching wildcard that will never handle real
+# traffic (hostname wildcards aren't supported — see the note above this
+# block's history). Learned the hard way: commenting this whole block out
+# previously caused a 401 "Access denied" on ingest, because the platform
+# discovers which KV secret names an app may inject into headers by scanning
+# proxies.yml's literal (non-comment) text for `kv.<name>` usage — with no
+# live reference to `demoLakeIngestToken` anywhere in this file, the platform
+# silently refused to inject it even after the admin authorized the real
+# hostname separately. This entry's only job now is to keep that secret name
+# declared; the admin's real-hostname entry (step 2 above) is what actually
+# handles the live request.
 "direct-access-*.cribl.cloud:10080":
   timeout: 120000
   headers:

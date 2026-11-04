@@ -17,6 +17,23 @@ export function TalkTrackPanel({ talkTrack }: { talkTrack: TalkTrack }) {
         <span className="tt-label">Proof point</span>
         <p>{talkTrack.proofPoint}</p>
       </div>
+      {talkTrack.setupSteps && talkTrack.setupSteps.length > 0 && (
+        <div className="tt-setup-steps">
+          <span className="tt-label">Required one-time setup</span>
+          <ol>
+            {talkTrack.setupSteps.map((step, i) => (
+              <li key={step.image}>
+                <img src={step.image} alt={step.alt} />
+                <p>
+                  <strong>Step {i + 1}: </strong>
+                  {step.caption}
+                </p>
+                {step.highlight && <code className="tt-highlight">{step.highlight}</code>}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
       {talkTrack.bullets && talkTrack.bullets.length > 0 && (
         <ul className="tt-bullets">
           {talkTrack.bullets.map((b) => (
