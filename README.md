@@ -231,3 +231,25 @@ npm run package  # bump version and create the Cribl app archive
 
 See `AGENTS.md` for Cribl App Platform specifics (fetch proxy, KV store,
 `config/proxies.yml`, navigation).
+
+## Installing directly from GitHub
+
+Cribl's **Add App > Import from Git** doesn't read this repo's source tree —
+it needs a pre-built package (`static/index.html` + `package.json` +
+`default/proxies.yml`) committed at the root of a tagged commit, not the
+`main` branch (which deliberately keeps `dist`/`static` out of git). A GitHub
+Action (`.github/workflows/release.yml`) builds that package and publishes it
+to a dedicated `release` branch, tagged `v<version>`, whenever `package.json`
+changes on `main`.
+
+To install the app in Cribl, use **Add App > Import from Git** and supply:
+
+- **Repository URL**: this repo's URL
+- **Tag**: `v<version>` (e.g. `v1.0.44`) — matching the version in
+  `package.json` at the top of this README's history; check the repo's tags
+  for the latest. The tag is required — pointing at `main` or `release`
+  without one will not find a valid package.
+
+To cut a release manually instead of waiting on CI, run
+`npm run release:git-pack`, review what it prepared, then push as it prints
+(`git push origin release && git push origin v<version> --force`).
