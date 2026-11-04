@@ -1,14 +1,15 @@
 {
   "name": "demo-launcher",
   "private": true,
-  "version": "1.0.47",
+  "version": "1.0.48",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "package": "npm run build && node scripts/package.mjs"
+    "package": "npm run build && node scripts/package.mjs",
+    "release:git-pack": "node scripts/prepare-git-pack.mjs"
   },
   "dependencies": {
     "react": "^19.2.7",

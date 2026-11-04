@@ -1,24 +1,23 @@
-name: Release
+name: Prepare Install-from-Git release
 
-# Cribl's "Import from Git" installs a GitHub Release's attached .tgz asset,
-# not raw files from the repo tree — confirmed against Cribl's own internal
-# "App Publishing to Github" guide. npm run package already builds the exact
-# static/index.html + package.json + default/proxies.yml layout Import from
-# Git expects, just zipped into a .tgz; this workflow publishes that .tgz as
-# a GitHub Release.
+# Cribl's Admin Guide is explicit: "Add App > Import from Git can install
+# from a repository that contains a valid App package layout" — it clones
+# the given ref's TREE directly (confirmed live: pointing it at a tag whose
+# commit has no static/index.html in the tree fails with that exact error,
+# regardless of any GitHub Release or attached .tgz asset at that tag).
 #
-# Triggered by pushing a `v*` tag, or manually via workflow_dispatch (Actions
-# tab > Release > Run workflow, or `gh workflow run Release -f version=1.0.0`)
-# when a tag push doesn't trigger a run for whatever reason.
+# This repo's main branch deliberately keeps dist/static out of git (see
+# .gitignore), so this workflow runs scripts/prepare-git-pack.mjs whenever
+# package.json changes on main, and pushes the resulting `release` branch +
+# `v<version>` tag — a commit whose tree directly contains static/index.html
+# + package.json + default/proxies.yml — so Import from Git has something to
+# clone and find.
 on:
   push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to package and release (X.Y.Z, no leading v)'
-        required: true
+    branches: [main]
+    paths:
+      - package.json
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -28,32 +27,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch existing release branch (if any)
+        run: git fetch origin release:release || true
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - run: npm ci
-      - run: npm run lint
 
-      - name: Resolve version + tag for this run
-        id: ver
+      - name: Configure git identity for the release commit
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-            echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Package at that version
-        run: npm run package -- --version "${{ steps.ver.outputs.version }}"
+      - run: node scripts/prepare-git-pack.mjs
 
-      - name: Create GitHub Release with the .tgz attached
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          files: build/*.tgz
-          fail_on_unmatched_files: true
-          generate_release_notes: true
+      - name: Push release branch and tag
+        run: |
+          git push origin release
+          git push origin --tags --force
