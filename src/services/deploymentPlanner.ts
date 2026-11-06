@@ -598,6 +598,20 @@ function searchParseForSample(datagenSample: string): SearchParseSpec {
         projectFields: ['_time', 'zs_user', 'web_url', 'action', 'urlcategory', 'reason'],
         groupBy: { field: 'action', label: 'action' },
       };
+    case 'fortinet_fw':
+      // FortiOS key=value traffic/UTM/IPS syslog (see domain/samples/fortinet.ts).
+      // IPs/ports/ids are bare; string enums (action, type, service) are quoted.
+      return {
+        parse: [
+          '| extend fw_action = extract("action=\\"([^\\"]*)\\"", 1, _raw)',
+          '| extend fw_type = extract("\\\\stype=\\"([^\\"]*)\\"", 1, _raw)',
+          '| extend fw_srcip = extract("srcip=([0-9.]+)", 1, _raw)',
+          '| extend fw_dstip = extract("dstip=([0-9.]+)", 1, _raw)',
+          '| extend fw_service = extract("service=\\"([^\\"]*)\\"", 1, _raw)',
+        ].join('\n'),
+        projectFields: ['_time', 'fw_type', 'fw_action', 'fw_srcip', 'fw_dstip', 'fw_service'],
+        groupBy: { field: 'fw_action', label: 'action' },
+      };
     case 'sentinel_windowsevents':
       return {
         parse: [
@@ -780,6 +794,29 @@ function buildDashboardElements(
     ];
   }
 
+  if (datagenSample === 'fortinet_fw') {
+    return [
+      el('fgt_traffic_over_time', 'chart.line', 'Traffic volume over time',
+        '| summarize events = count() by bin(_time, 5m)\n| sort by _time asc',
+        { x: 0, y: 0, w: 12, h: 5 }),
+      el('fgt_action_split', 'chart.pie', 'Accept vs deny/blocked split',
+        '| summarize count = count() by fw_action\n| sort by count desc',
+        { x: 0, y: 5, w: 4, h: 6 }),
+      el('fgt_by_type', 'list.table', 'Events by log type',
+        '| summarize count = count() by fw_type\n| sort by count desc\n| limit 10',
+        { x: 4, y: 5, w: 8, h: 6 }),
+      el('fgt_top_src', 'list.table', 'Top source IPs',
+        '| summarize count = count() by fw_srcip\n| sort by count desc\n| limit 10',
+        { x: 0, y: 11, w: 6, h: 6 }),
+      el('fgt_top_service', 'list.table', 'Top services',
+        '| summarize count = count() by fw_service\n| sort by count desc\n| limit 10',
+        { x: 6, y: 11, w: 6, h: 6 }),
+      el('fgt_recent', 'list.events', 'Recent traffic',
+        '| project _time, fw_type, fw_action, fw_srcip, fw_dstip, fw_service\n| limit 100',
+        { x: 0, y: 17, w: 12, h: 8 }),
+    ];
+  }
+
   if (datagenSample === 'crowdstrike_falcon') {
     // Fields verified live against the real `falcon_events` v2-datatyped
     // dataset (not guessed): nested `metadata.*`/`event.*` paths, rendered
@@ -895,6 +932,8 @@ function dashboardTopicForSample(datagenSample: string, fallbackTitle: string): 
       return 'F5 BIG-IP';
     case 'zscaler_nss':
       return 'Zscaler Web Traffic';
+    case 'fortinet_fw':
+      return 'FortiGate Firewall';
     case OTEL_SAMPLE:
       return 'AI Telemetry';
     default:

@@ -1,5 +1,5 @@
 import type { SourceProfile } from '../types';
-import { siCisco, siClaudecode, siF5, siLinux, siPaloaltonetworks } from 'simple-icons';
+import { siCisco, siClaudecode, siF5, siFortinet, siLinux, siPaloaltonetworks } from 'simple-icons';
 import crowdstrikeSvgRaw from '../../assets/icons/crowdstrike.svg?raw';
 import checkpointPng from '../../assets/icons/checkpoint.png';
 import zscalerPng from '../../assets/icons/zscaler.png';
@@ -20,6 +20,7 @@ import { checkpointEvents, checkpointSampleMeta } from '../samples/checkpoint';
 import { crowdstrikeEvents, crowdstrikeSampleMeta } from '../samples/crowdstrike';
 import { f5BigipEvents, f5BigipSampleMeta } from '../samples/f5Bigip';
 import { zscalerEvents, zscalerSampleMeta } from '../samples/zscaler';
+import { fortinetEvents, fortinetSampleMeta } from '../samples/fortinet';
 
 const GENERIC_ICON = { kind: 'generic' as const };
 
@@ -431,6 +432,44 @@ export const sourceProfiles: SourceProfile[] = [
       sourcetype: f5BigipSampleMeta.sourcetype,
       source: f5BigipSampleMeta.source,
       index: f5BigipSampleMeta.index,
+    },
+  },
+  {
+    id: 'src-fortinet-firewall',
+    icon: { kind: 'brand-svg', svg: siFortinet.svg, hex: siFortinet.hex, label: siFortinet.title },
+    family: 'syslog',
+    displayName: 'Fortinet FortiGate (traffic log)',
+    summary: 'Perimeter firewall forward-traffic, UTM/virus, and IPS logs over syslog.',
+    protocol: 'Syslog (FortiOS key=value)',
+    streamInputKind: 'syslog',
+    loopListenerKind: 'syslog',
+    datagenSample: 'fortinet_fw',
+    defaultPort: 21026,
+    sampleSchema: [
+      { name: 'srcip', type: 'ip', example: '10.14.2.87' },
+      { name: 'dstip', type: 'ip', example: '52.10.44.9' },
+      { name: 'action', type: 'string', example: 'accept' },
+      { name: 'service', type: 'string', example: 'HTTPS' },
+      { name: 'policyid', type: 'string', example: '4' },
+    ],
+    compatibleDestinations: ['siem-analytics', 'low-cost-store', 'compliance-archive'],
+    parsingAssumptions: [
+      'FortiOS key=value traffic-log payload (type=traffic/utm/event)',
+      'Timestamp taken from the date/time fields',
+      'action field drives accept/deny/blocked classification',
+    ],
+    sampleFeed: {
+      method: 'cribl-datagen',
+      internalTemplateRef: 'replay:fortinet_fw',
+      approxEventsPerSecond: 75,
+      maintainerNote:
+        'App-shipped FortiGate syslog events replayed via a pipeline (datagen used only as a clock) so the data matches the cribl-fortinet-fortigate-firewall pack.',
+    },
+    replaySample: {
+      events: fortinetEvents,
+      sourcetype: fortinetSampleMeta.sourcetype,
+      source: fortinetSampleMeta.source,
+      index: fortinetSampleMeta.index,
     },
   },
   {

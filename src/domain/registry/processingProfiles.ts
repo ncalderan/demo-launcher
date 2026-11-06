@@ -28,6 +28,11 @@ export const packForSample: Record<string, { id: string; source: string }> = {
   crowdstrike_falcon: { id: 'cribl_crowdstrike', source: packUrl('cribl_crowdstrike') },
   f5_bigip: { id: 'cribl-f5-bigip', source: packUrl('cribl-f5-bigip') },
   zscaler_nss: { id: 'cribl-zscaler', source: packUrl('cribl-zscaler') },
+  // Verified resolvable on the Dispensary (HTTP 200) this session.
+  fortinet_fw: {
+    id: 'cribl-fortinet-fortigate-firewall',
+    source: packUrl('cribl-fortinet-fortigate-firewall'),
+  },
 };
 
 /** Resolve the real Cribl Pack that matches a source's datagen sample, if any. */
@@ -202,6 +207,20 @@ export const processingProfiles: ProcessingProfile[] = [
     steps: [
       'Parse Zscaler NSS web-log JSON records',
       'Classify allow/block actions and threat categorization',
+      'Normalize fields for downstream SIEM consumption',
+    ],
+    themes: ['cost-control', 'telemetry-tiering'],
+  },
+  {
+    id: 'proc-pack-fortinet',
+    kind: 'pack-backed',
+    displayName: 'Fortinet FortiGate Pack',
+    summary: 'Official Cribl Pack that parses FortiGate traffic/UTM/IPS syslog.',
+    packRef: 'cribl-fortinet-fortigate-firewall',
+    pack: packForSample.fortinet_fw,
+    steps: [
+      'Parse FortiOS key=value traffic/UTM/IPS syslog payloads',
+      'Classify accept/deny actions and UTM/IPS threat events',
       'Normalize fields for downstream SIEM consumption',
     ],
     themes: ['cost-control', 'telemetry-tiering'],

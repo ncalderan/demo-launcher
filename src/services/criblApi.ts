@@ -345,20 +345,38 @@ export async function resolveLakeId(preferred = 'default'): Promise<string> {
  * either absent or healthy (reusable). Best-effort: if listing fails we return
  * `baseId` unchanged.
  */
-/** Ids of Lake datasets currently mid-deletion (empty set if the list can't be read). */
-async function fetchPendingDeletionDatasetIds(lakeId: string): Promise<Set<string>> {
+/**
+ * Ids of Lake datasets that currently exist, and the subset of those mid-deletion
+ * (both empty if the list can't be read). One GET covers both questions: "is this
+ * id still usable" needs to know not just whether a dataset is pending deletion,
+ * but whether it exists at ALL — an id can be gone outright (fully deleted in an
+ * earlier reset, not just "pending") and still linger in a Direct Access source's
+ * `datasetIds` allowlist from before, since that field is only ever additive
+ * unless explicitly pruned.
+ */
+async function fetchLakeDatasetStatus(
+  lakeId: string,
+): Promise<{ existing: Set<string>; pendingDeletion: Set<string> }> {
+  const existing = new Set<string>();
   const pendingDeletion = new Set<string>();
   try {
     const data = await request<{
       items?: Array<{ id?: string; deletionStartedAt?: number }>;
     }>('GET', `${apiBase()}/products/lake/lakes/${encodeURIComponent(lakeId)}/datasets`);
     for (const d of data.items ?? []) {
-      if (d.id && d.deletionStartedAt) pendingDeletion.add(String(d.id));
+      if (!d.id) continue;
+      existing.add(String(d.id));
+      if (d.deletionStartedAt) pendingDeletion.add(String(d.id));
     }
   } catch {
-    /* can't tell — caller treats as "nothing known to be pending" */
+    /* can't tell — caller treats as "nothing known to exist or be pending" */
   }
-  return pendingDeletion;
+  return { existing, pendingDeletion };
+}
+
+/** Ids of Lake datasets currently mid-deletion (empty set if the list can't be read). */
+async function fetchPendingDeletionDatasetIds(lakeId: string): Promise<Set<string>> {
+  return (await fetchLakeDatasetStatus(lakeId)).pendingDeletion;
 }
 
 export async function resolveAvailableDatasetId(
@@ -751,21 +769,35 @@ export async function ensureLakeDirectAccessSource(
     if (!hasOurToken || missingDatasetIds.length > 0) {
       // Register our token and dataset ids without disturbing tenant-configured
       // ones; prune our own stale tokens so the source doesn't accumulate one
-      // per deploy. Dataset ids are additive, EXCEPT for ones that are
-      // currently mid-deletion: Lake validates the WHOLE `datasetIds` array on
-      // every update, so a single stale, pending-deletion id left over from an
-      // earlier reset (e.g. an old `_2`-suffix collision rename) makes the
-      // ENTIRE update 400 — including our brand-new, valid ids. Confirmed
-      // live: "Dataset '...' is being deleted and cannot be used for Direct
-      // Access."
-      const pendingDeletion = await fetchPendingDeletionDatasetIds(lakeId);
+      // per deploy. OLD allowlist entries are kept only if they currently
+      // exist and aren't mid-deletion — Lake validates the WHOLE `datasetIds`
+      // array on every update, so a single stale id left over from an
+      // earlier reset makes the ENTIRE update fail, even though our
+      // brand-new ids are valid. Two distinct stale-reference failure modes
+      // confirmed live: a pending-deletion id ("Dataset '...' is being
+      // deleted and cannot be used for Direct Access"), and an id that's
+      // fully gone (e.g. a `_5`-suffixed collision rename from a prior run
+      // whose underlying dataset was since deleted outright, not just
+      // pending) — the allowlist still listed it, but nothing by that name
+      // existed, and the base id a fresh deploy actually created was never
+      // added because the merge never checked existence, only
+      // pending-deletion. The NEW ids this deploy is requesting are always
+      // kept regardless of current existence — they're either already
+      // healthy or are about to be created by this same deploy's own
+      // create-lake-dataset actions.
+      const { existing, pendingDeletion } = await fetchLakeDatasetStatus(lakeId);
       const tokens =
         item.authTokens?.filter(
           (t) => t.token !== token && t.description !== DA_TOKEN_MARKER,
         ) ?? [];
       const mergedDatasetIds = Array.from(
         new Set(
-          [...(item.datasetIds ?? []), ...datasetIds].filter((d) => !pendingDeletion.has(d)),
+          [
+            ...(item.datasetIds ?? []).filter(
+              (d) => existing.has(d) && !pendingDeletion.has(d),
+            ),
+            ...datasetIds,
+          ],
         ),
       );
       const body = {
